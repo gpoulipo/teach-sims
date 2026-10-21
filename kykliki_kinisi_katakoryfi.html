@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Κατακόρυφη ομαλή κυκλική κίνηση</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:system-ui,"Segoe UI",Roboto,Arial,sans-serif;margin:0;background:#f4f6f9;color:#1d2433}
+  .wrap{max-width:1000px;margin:0 auto;padding:16px}
+  h1{font-size:20px;margin:0 0 10px}
+  canvas{width:100%;height:auto;background:#fff;border:1px solid #d5dbe5;border-radius:10px;display:block}
+  .panel{background:#fff;border:1px solid #d5dbe5;border-radius:10px;padding:12px 14px;margin-top:12px}
+  .row{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center}
+  .row + .row{margin-top:10px}
+  label{font-size:14px;display:inline-flex;align-items:center;gap:8px}
+  input[type=range]{width:160px}
+  .val{display:inline-block;min-width:54px;font-variant-numeric:tabular-nums;font-weight:600}
+  button{font:inherit;font-size:14px;padding:7px 16px;border-radius:8px;border:1px solid #9aa6ba;background:#f0f3f8;cursor:pointer}
+  button:hover{background:#e3e9f3}
+  button.primary{background:#2b6cb0;border-color:#2b6cb0;color:#fff}
+  button.primary:hover{background:#245a93}
+  .cut{background:#fff4e5;border:1px solid #f0b46a;border-radius:8px;padding:6px 12px;font-weight:600}
+  .readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:12px}
+  .card{background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 10px}
+  .card b{display:block;font-size:12px;color:#5b667a;font-weight:600}
+  .card span{font-size:18px;font-variant-numeric:tabular-nums}
+  #status{margin-top:10px;font-size:14px;color:#46536b;min-height:20px}
+  .note{font-size:12.5px;color:#5b667a;margin-top:8px}
+  .sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Κατακόρυφη ομαλή κυκλική κίνηση</h1>
+  <canvas id="c"></canvas>
+
+  <div class="panel">
+    <div class="row">
+      <button id="play" class="primary">⏸ Παύση</button>
+      <button id="reset">↺ Επαναφορά</button>
+      <label class="cut"><input type="checkbox" id="cut"> Κόψιμο νήματος στο ανώτατο σημείο</label>
+    </div>
+    <div class="row">
+      <label>Ακτίνα R <input type="range" id="R" min="0.8" max="2" step="0.1" value="1.5"><span class="val" id="Rv"></span></label>
+      <label>Ταχύτητα υ <input type="range" id="v" min="1" max="6" step="0.1" value="3.5"><span class="val" id="vv"></span></label>
+      <label>Ταχύτητα προσομοίωσης
+        <select id="speed">
+          <option value="0.25">0,25×</option>
+          <option value="0.5">0,5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="showV" checked> <span class="sw" style="background:#1f6feb"></span>Ταχύτητα υ</label>
+      <label><input type="checkbox" id="showA" checked> <span class="sw" style="background:#d62839"></span>Κεντρομόλος επιτάχυνση α<sub>κ</sub></label>
+      <label><input type="checkbox" id="showT" checked> <span class="sw" style="background:#2a9d57"></span>Γωνία θ</label>
+    </div>
+    <div id="status"></div>
+  </div>
+
+  <div class="readouts">
+    <div class="card"><b>Γωνία θ</b><span id="rTheta"></span></div>
+    <div class="card"><b>Πλήρεις περιστροφές</b><span id="rTurns"></span></div>
+    <div class="card"><b>Περίοδος Τ = 2πR/υ</b><span id="rT"></span></div>
+    <div class="card"><b>Γωνιακή ταχύτητα ω = υ/R</b><span id="rW"></span></div>
+    <div class="card"><b>α<sub>κ</sub> = υ²/R</b><span id="rA"></span></div>
+    <div class="card"><b>Ύψος ανώτατου σημείου</b><span id="rH"></span></div>
+    <div class="card"><b>Χρόνος πτώσης t = √(2h/g)</b><span id="rTf"></span></div>
+    <div class="card"><b>Οριζόντια απόσταση x = υ·t</b><span id="rX"></span></div>
+  </div>
+  <div class="note">Κλίμακες διανυσμάτων: 1 m/s = 18 px για την ταχύτητα, 1 m/s² = 2,5 px για τις επιταχύνσεις. Η γωνία θ μετριέται αριστερόστροφα από την οριζόντια ακτίνα προς τα δεξιά. Το ύψος του κέντρου από το έδαφος είναι 3 m και g = 9,81 m/s².</div>
+</div>
+
+<script>
+const W = 960, HC = 600, S = 80;          // λογικές διαστάσεις καμβά, px ανά m
+const PH = 3, PX = 690, GY = 560, BR = 9; // ύψος κέντρου (m), θέση κέντρου, έδαφος, ακτίνα σώματος (px)
+const G = 9.81, KV = 18, KA = 2.5;
+const wx = x => PX + x * S;
+const wy = y => GY - y * S;
+
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const dpr = window.devicePixelRatio || 1;
+cv.width = W * dpr; cv.height = HC * dpr;
+ctx.scale(dpr, dpr);
+
+const $ = id => document.getElementById(id);
+const el = {
+  play: $('play'), reset: $('reset'), cut: $('cut'), R: $('R'), v: $('v'), speed: $('speed'),
+  showV: $('showV'), showA: $('showA'), showT: $('showT')
+};
+const fmt = (x, d = 2) => x.toFixed(d).replace('.', ',');
+
+let R = 1.5, v = 3.5, theta = 0, mode = 'circle', running = true, landed = false, speed = 1;
+let bx = 0, by = 0, vx = 0, vy = 0, trail = [], tflight = 0, tf = 0;
+
+function doReset() {
+  theta = 0; mode = 'circle'; landed = false; trail = []; tflight = 0; tf = 0;
+  bx = R; by = PH;
+}
+
+function readParams() {
+  R = parseFloat(el.R.value); v = parseFloat(el.v.value);
+  $('Rv').textContent = fmt(R, 1) + ' m';
+  $('vv').textContent = fmt(v, 1) + ' m/s';
+}
+
+function step(dt) {
+  if (mode === 'circle') {
+    const nt = theta + (v / R) * dt;
+    if (el.cut.checked) {
+      const k0 = Math.floor((theta - Math.PI / 2) / (2 * Math.PI));
+      const k1 = Math.floor((nt - Math.PI / 2) / (2 * Math.PI));
+      if (k1 > k0) {             // πέρασε από το ανώτατο σημείο
+        theta = Math.PI / 2 + k1 * 2 * Math.PI;
+        mode = 'free';
+        tf = Math.sqrt(2 * (PH + R) / G);
+        tflight = 0; landed = false;
+        bx = 0; by = PH + R; vx = -v; vy = 0;
+        trail = [{ x: bx, y: by }];
+        return;
+      }
+    }
+    theta = nt;
+    bx = R * Math.cos(theta); by = PH + R * Math.sin(theta);
+  } else if (!landed) {
+    tflight += dt;
+    if (tflight >= tf) { tflight = tf; landed = true; }
+    bx = -v * tflight;
+    by = (PH + R) - 0.5 * G * tflight * tflight;
+    vx = -v; vy = -G * tflight;
+    trail.push({ x: bx, y: by });
+  }
+}
+
+/* ---------- βοηθητικά σχεδίασης ---------- */
+function arrow(x0, y0, x1, y1, col, w = 3) {
+  const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy);
+  if (L < 3) return;
+  const ang = Math.atan2(dy, dx), hl = Math.min(13, L * 0.5);
+  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x0, y0);
+  ctx.lineTo(x1 - Math.cos(ang) * hl * 0.7, y1 - Math.sin(ang) * hl * 0.7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1, y1);
+  ctx.lineTo(x1 - hl * Math.cos(ang - 0.4), y1 - hl * Math.sin(ang - 0.4));
+  ctx.lineTo(x1 - hl * Math.cos(ang + 0.4), y1 - hl * Math.sin(ang + 0.4));
+  ctx.closePath(); ctx.fill();
+}
+function text(s, x, y, col, size = 16, align = 'center') {
+  ctx.font = `600 ${size}px system-ui, Arial, sans-serif`;
+  ctx.textAlign = align; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineJoin = 'round';
+  ctx.strokeText(s, x, y); ctx.fillStyle = col; ctx.fillText(s, x, y);
+}
+function vecLabel(s, x0, y0, x1, y1, col) {
+  const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1;
+  text(s, x1 + dx / L * 16 - dy / L * 8, y1 + dy / L * 16 + dx / L * 8, col, 17);
+}
+function dashed(on) { ctx.setLineDash(on ? [6, 6] : []); }
+
+/* ---------- σχεδίαση ---------- */
+function draw() {
+  ctx.clearRect(0, 0, W, HC);
+  const pcx = PX, pcy = wy(PH);
+
+  // έδαφος
+  ctx.fillStyle = '#e9efe4'; ctx.fillRect(0, GY + BR, W, HC - GY - BR);
+  ctx.strokeStyle = '#7a8a6e'; ctx.lineWidth = 2; dashed(false);
+  ctx.beginPath(); ctx.moveTo(0, GY + BR); ctx.lineTo(W, GY + BR); ctx.stroke();
+
+  // βάση στήριξης
+  ctx.strokeStyle = '#d3d9e2'; ctx.lineWidth = 8;
+  ctx.beginPath(); ctx.moveTo(pcx, GY + BR); ctx.lineTo(pcx, pcy); ctx.stroke();
+
+  // κυκλική τροχιά (αχνή)
+  ctx.strokeStyle = '#c3cbd8'; ctx.lineWidth = 1.5; dashed(true);
+  ctx.beginPath(); ctx.arc(pcx, pcy, R * S, 0, 2 * Math.PI); ctx.stroke(); dashed(false);
+
+  const armed = el.cut.checked;
+
+  // σημείο κοπής + προβλεπόμενη τροχιά
+  if (armed) {
+    const tx = pcx, ty = wy(PH + R);
+    ctx.strokeStyle = '#e07b00'; ctx.lineWidth = 2; dashed(false);
+    ctx.beginPath(); ctx.arc(tx, ty, 13, 0, 2 * Math.PI); ctx.stroke();
+    if (mode === 'circle') {
+      const tfp = Math.sqrt(2 * (PH + R) / G);
+      ctx.strokeStyle = '#e07b00'; ctx.lineWidth = 2; dashed(true);
+      ctx.beginPath();
+      for (let i = 0; i <= 60; i++) {
+        const t = tfp * i / 60;
+        const X = wx(-v * t), Y = wy((PH + R) - 0.5 * G * t * t);
+        i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y);
+      }
+      ctx.stroke(); dashed(false);
+      text('προβλεπόμενη τροχιά', wx(-v * tfp * 0.5), wy(PH + R) - 20, '#b25f00', 14);
+    }
+  }
+
+  if (mode === 'circle') {
+    const cx = wx(bx), cy = wy(by);
+
+    // οριζόντια ακτίνα αναφοράς
+    ctx.strokeStyle = '#8b97ab'; ctx.lineWidth = 1.5; dashed(true);
+    ctx.beginPath(); ctx.moveTo(pcx, pcy); ctx.lineTo(pcx + R * S + 36, pcy); ctx.stroke(); dashed(false);
+
+    // νήμα
+    ctx.strokeStyle = '#444'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(pcx, pcy); ctx.lineTo(cx, cy); ctx.stroke();
+
+    // γωνία θ
+    if (el.showT.checked) {
+      const tm = theta % (2 * Math.PI);
+      if (tm > 0.01) {
+        ctx.strokeStyle = '#2a9d57'; ctx.lineWidth = 3.5;
+        ctx.beginPath(); ctx.arc(pcx, pcy, 34, 0, -tm, true); ctx.stroke();
+      }
+      const mid = -tm / 2;
+      text('θ = ' + Math.round(tm * 180 / Math.PI) + '°', pcx + 66 * Math.cos(mid), pcy + 66 * Math.sin(mid), '#1f7a43', 16);
+    }
+
+    // κέντρο και σώμα
+    ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(pcx, pcy, 5, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = '#5b3fd0'; ctx.beginPath(); ctx.arc(cx, cy, BR + 2, 0, 2 * Math.PI); ctx.fill();
+
+    // διανύσματα
+    const ac = v * v / R;
+    if (el.showV.checked) {
+      const x1 = cx - Math.sin(theta) * v * KV, y1 = cy - Math.cos(theta) * v * KV;
+      arrow(cx, cy, x1, y1, '#1f6feb', 3.5); vecLabel('υ', cx, cy, x1, y1, '#1f6feb');
+    }
+    if (el.showA.checked) {
+      const x1 = cx - Math.cos(theta) * ac * KA, y1 = cy + Math.sin(theta) * ac * KA;
+      arrow(cx, cy, x1, y1, '#d62839', 3.5); vecLabel('α\u03BA', cx, cy, x1, y1, '#d62839');
+    }
+  } else {
+    // πραγματική τροχιά μετά το κόψιμο
+    ctx.strokeStyle = '#e07b00'; ctx.lineWidth = 3; dashed(false);
+    ctx.beginPath();
+    trail.forEach((p, i) => i ? ctx.lineTo(wx(p.x), wy(p.y)) : ctx.moveTo(wx(p.x), wy(p.y)));
+    ctx.stroke();
+
+    // κέντρο (χωρίς νήμα)
+    ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(pcx, pcy, 5, 0, 2 * Math.PI); ctx.fill();
+
+    const cx = wx(bx), cy = wy(by);
+    ctx.fillStyle = '#5b3fd0'; ctx.beginPath(); ctx.arc(cx, cy, BR + 2, 0, 2 * Math.PI); ctx.fill();
+
+    if (!landed) {
+      if (el.showV.checked) {
+        // συνιστώσες
+        arrow(cx, cy, cx + vx * KV, cy, '#7fa8e8', 2);
+        arrow(cx, cy, cx, cy - vy * KV, '#7fa8e8', 2);
+        const x1 = cx + vx * KV, y1 = cy - vy * KV;
+        arrow(cx, cy, x1, y1, '#1f6feb', 3.5); vecLabel('υ', cx, cy, x1, y1, '#1f6feb');
+      }
+      if (el.showA.checked) {
+        const x1 = cx, y1 = cy + G * KA;
+        arrow(cx, cy, x1, y1, '#d62839', 3.5); vecLabel('g', cx, cy, x1, y1, '#d62839');
+      }
+    } else {
+      // απόσταση στο έδαφος
+      const yb = GY + BR + 20;
+      ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; dashed(false);
+      ctx.beginPath(); ctx.moveTo(pcx, yb); ctx.lineTo(cx, yb);
+      ctx.moveTo(pcx, yb - 6); ctx.lineTo(pcx, yb + 6); ctx.moveTo(cx, yb - 6); ctx.lineTo(cx, yb + 6); ctx.stroke();
+      text('x = ' + fmt(Math.abs(bx)) + ' m', (pcx + cx) / 2, yb + 14, '#333', 15);
+    }
+  }
+}
+
+/* ---------- ενημέρωση ενδείξεων ---------- */
+function updateReadouts() {
+  const tm = ((theta % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  $('rTheta').textContent = Math.round(tm * 180 / Math.PI) + '° (' + fmt(tm, 2) + ' rad)';
+  $('rTurns').textContent = Math.floor(theta / (2 * Math.PI) + 1e-9);
+  $('rT').textContent = fmt(2 * Math.PI * R / v) + ' s';
+  $('rW').textContent = fmt(v / R) + ' rad/s';
+  $('rA').textContent = fmt(v * v / R) + ' m/s²';
+  const h = PH + R, tfp = Math.sqrt(2 * h / G);
+  $('rH').textContent = fmt(h, 1) + ' m';
+  const show = el.cut.checked;
+  $('rTf').textContent = show ? fmt(tfp) + ' s' : '—';
+  $('rX').textContent = show ? fmt(v * tfp) + ' m' : '—';
+
+  let s;
+  if (mode === 'free') {
+    s = landed ? 'Το σώμα έπεσε στο έδαφος. Πάτησε «Επαναφορά» για να επαναλάβεις.'
+               : 'Το νήμα κόπηκε στο ανώτατο σημείο: το σώμα εκτελεί οριζόντια βολή με αρχική ταχύτητα υ και επιτάχυνση g.';
+  } else {
+    s = el.cut.checked ? 'Το νήμα θα κοπεί όταν το σώμα φτάσει στο ανώτατο σημείο (θ = 90° + κ·360°).'
+                       : 'Η ταχύτητα έχει σταθερό μέτρο αλλά αλλάζει διεύθυνση· η επιτάχυνση α\u03BA δείχνει πάντα προς το κέντρο.';
+  }
+  $('status').textContent = s;
+}
+
+/* ---------- κύριος βρόχος ---------- */
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (running) step(dt * speed);
+  draw(); updateReadouts();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- χειριστήρια ---------- */
+el.play.onclick = () => {
+  running = !running;
+  el.play.textContent = running ? '⏸ Παύση' : '▶ Συνέχεια';
+};
+el.reset.onclick = () => { doReset(); running = true; el.play.textContent = '⏸ Παύση'; };
+el.R.oninput = el.v.oninput = () => { readParams(); if (mode === 'free') doReset(); else { bx = R * Math.cos(theta); by = PH + R * Math.sin(theta); } };
+el.speed.onchange = () => { speed = parseFloat(el.speed.value); };
+
+readParams(); doReset();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
