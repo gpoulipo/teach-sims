@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ηλεκτρισμός: φόρτιση με τριβή, επαφή και επαγωγή</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:system-ui,"Segoe UI",Roboto,Arial,sans-serif;margin:0;background:#f4f6f9;color:#1d2433}
+  .wrap{max-width:1000px;margin:0 auto;padding:16px}
+  h1{font-size:20px;margin:0 0 10px}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .tab{font:inherit;font-size:15px;font-weight:600;padding:9px 16px;border-radius:8px;border:1px solid #9aa6ba;background:#eef1f6;cursor:pointer;color:#34425a}
+  .tab:hover{background:#e0e6f0}
+  .tab.active{background:#2b6cb0;border-color:#2b6cb0;color:#fff}
+  canvas{width:100%;height:auto;background:#fff;border:1px solid #d5dbe5;border-radius:10px;display:block}
+  .panel{background:#fff;border:1px solid #d5dbe5;border-radius:10px;padding:12px 14px;margin-top:12px}
+  .row{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center}
+  label{font-size:14px;display:inline-flex;align-items:center;gap:8px}
+  input[type=range]{width:220px}
+  select{font:inherit;font-size:14px;padding:5px 8px;border-radius:6px;border:1px solid #9aa6ba;background:#fff}
+  button.b{font:inherit;font-size:14px;padding:7px 16px;border-radius:8px;border:1px solid #9aa6ba;background:#f0f3f8;cursor:pointer}
+  button.b:hover{background:#e3e9f3}
+  button.primary{background:#2b6cb0;border-color:#2b6cb0;color:#fff}
+  button.primary:hover{background:#245a93}
+  button.on{background:#2a9d57;border-color:#2a9d57;color:#fff}
+  button.on:hover{background:#238a4c}
+  .hide{display:none!important}
+  #status{margin-top:10px;font-size:14px;color:#2f3c55;min-height:40px;line-height:1.45}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-top:12px}
+  .card{background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 10px}
+  .card b{display:block;font-size:12px;color:#5b667a;font-weight:600}
+  .card span{font-size:18px;font-variant-numeric:tabular-nums}
+  .note{font-size:13px;color:#46536b;margin-top:10px;line-height:1.5;background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Φόρτιση σωμάτων: τριβή, επαφή, επαγωγή</h1>
+  <div class="tabs">
+    <button class="tab active" data-t="1">1 · Με τριβή</button>
+    <button class="tab" data-t="2">2 · Με επαφή</button>
+    <button class="tab" data-t="3">3 · Με επαγωγή</button>
+  </div>
+  <canvas id="c"></canvas>
+
+  <div class="panel">
+    <!-- Καρτέλα 1 -->
+    <div class="row" id="ctl1">
+      <label>Υλικά
+        <select id="mat">
+          <option value="ebonite">Εβονίτης + μάλλινο ύφασμα</option>
+          <option value="glass">Γυαλί + μεταξωτό ύφασμα</option>
+        </select>
+      </label>
+      <button class="b primary" id="rub">✋ Τρίψιμο</button>
+      <button class="b" id="appr">⬇ Πλησίασε τη ράβδο στα χαρτάκια</button>
+      <button class="b" id="r1">↺ Επαναφορά</button>
+    </div>
+    <!-- Καρτέλα 2 -->
+    <div class="row hide" id="ctl2">
+      <label>Φορτισμένη ράβδος
+        <select id="sign2">
+          <option value="-1">Αρνητική (εβονίτης)</option>
+          <option value="1">Θετική (γυαλί)</option>
+        </select>
+      </label>
+      <label>Απόσταση ράβδου <input type="range" id="gap2" min="0" max="170" step="1" value="170"></label>
+      <button class="b" id="r2">↺ Επαναφορά</button>
+    </div>
+    <!-- Καρτέλα 3 -->
+    <div class="row hide" id="ctl3">
+      <label>Φορτισμένη ράβδος
+        <select id="sign3">
+          <option value="-1">Αρνητική (εβονίτης)</option>
+          <option value="1">Θετική (γυαλί)</option>
+        </select>
+      </label>
+      <label>Απόσταση ράβδου <input type="range" id="gap3" min="10" max="170" step="1" value="170"></label>
+      <button class="b" id="gnd">⏚ Σύνδεση γείωσης</button>
+      <button class="b" id="r3">↺ Επαναφορά</button>
+    </div>
+    <div id="status"></div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+  <div class="note" id="note"></div>
+</div>
+
+<script>
+const W = 960, H = 600;
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const dpr = window.devicePixelRatio || 1;
+cv.width = W * dpr; cv.height = H * dpr;
+ctx.scale(dpr, dpr);
+
+const $ = id => document.getElementById(id);
+const RED = '#d62839', BLUE = '#1f6feb';
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease = t => t * t * (3 - 2 * t);
+const Q = q => q === 0 ? '0' : (q > 0 ? '+' : '−') + Math.abs(q) + 'e';
+const fmt = (x, d = 1) => x.toFixed(d).replace('.', ',');
+
+let tab = 1, time = 0;
+
+/* ---------- βοηθητικά σχεδίασης ---------- */
+function charge(x, y, sign, r = 7, alpha = 1) {
+  ctx.globalAlpha = alpha;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI);
+  ctx.fillStyle = sign > 0 ? '#ffe3e6' : '#e0ecff'; ctx.fill();
+  ctx.lineWidth = 1.5; ctx.strokeStyle = sign > 0 ? RED : BLUE; ctx.stroke();
+  ctx.lineWidth = Math.max(1.2, r * 0.28);
+  ctx.beginPath(); ctx.moveTo(x - r * 0.5, y); ctx.lineTo(x + r * 0.5, y);
+  if (sign > 0) { ctx.moveTo(x, y - r * 0.5); ctx.lineTo(x, y + r * 0.5); }
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+function text(s, x, y, col = '#333', size = 14, align = 'center') {
+  ctx.font = `600 ${size}px system-ui, Arial, sans-serif`;
+  ctx.textAlign = align; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineJoin = 'round';
+  ctx.strokeText(s, x, y); ctx.fillStyle = col; ctx.fillText(s, x, y);
+}
+function rr(x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function legend() {
+  charge(26, 26, 1, 7); text('θετικά ιόντα (ακίνητα)', 42, 26, '#333', 13, 'left');
+  charge(26, 52, -1, 7); text('ηλεκτρόνια (κινητά)', 42, 52, '#333', 13, 'left');
+}
+function table() {
+  ctx.fillStyle = '#ece6d8'; ctx.fillRect(0, 512, W, H - 512);
+  ctx.strokeStyle = '#a89f8a'; ctx.lineWidth = 2; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(0, 512); ctx.lineTo(W, 512); ctx.stroke();
+}
+
+/* =====================================================================
+   ΚΑΡΤΕΛΑ 1 — ΤΡΙΒΗ
+   ===================================================================== */
+const F = { mat: 'ebonite', rub: false, approach: 0, target: 0, rodN: 16, clothN: 16,
+            fly: [], moved: 0, timer: 0, phase: 0, amp: 0,
+            bits: [0, 1, 2, 3, 4, 5, 6].map(i => ({ lift: 0, rot: [-0.25, 0.18, -0.1, 0.3, -0.2, 0.12, -0.3][i] })) };
+
+function fReset() {
+  F.rub = false; F.target = 0; F.rodN = 16; F.clothN = 16; F.fly = []; F.moved = 0; F.timer = 0; F.amp = 0;
+  $('rub').textContent = '✋ Τρίψιμο'; $('rub').classList.remove('on');
+  $('appr').textContent = '⬇ Πλησίασε τη ράβδο στα χαρτάκια';
+}
+function geom(kind) {
+  if (kind === 'rod') {
+    const rA = ease(clamp(F.approach * 2 - 1, 0, 1));
+    return { x0: 480 - 145 + 22, dx: 34, cy: lerp(200, 432, rA), L: 335, w: 290, h: 56 };
+  }
+  const cA = clamp(F.approach * 2, 0, 1);
+  const cx = lerp(480, 150, ease(cA)) + F.amp * Math.sin(F.phase) * 50 * (1 - cA);
+  return { x0: cx - 130 + 20, dx: 30, cy: 266, L: cx - 130, w: 260, h: 76 };
+}
+const ionPos = (g, i) => [g.x0 + (i % 8) * g.dx, g.cy + (i < 8 ? -14 : 14)];
+const slotPos = (g, i) => [g.x0 + (i % 8) * g.dx + g.dx / 2, g.cy + (i < 8 ? -14 : (i < 16 ? 14 : 0))];
+
+function effN() {
+  return {
+    rod: F.rodN + F.fly.filter(f => f.dst === 'rod').length,
+    cloth: F.clothN + F.fly.filter(f => f.dst === 'cloth').length
+  };
+}
+function spawnFlight() {
+  const srcK = F.mat === 'ebonite' ? 'cloth' : 'rod', dstK = srcK === 'cloth' ? 'rod' : 'cloth';
+  const srcN = srcK === 'cloth' ? F.clothN : F.rodN;
+  const dstN = dstK === 'rod' ? F.rodN : F.clothN;
+  const pend = F.fly.length;
+  if (srcK === 'cloth') F.clothN--; else F.rodN--;
+  F.fly.push({ src: srcK, srcIdx: srcN - 1, dst: dstK, dstIdx: dstN + pend, t: 0 });
+  F.moved++;
+}
+function updF(dt) {
+  F.approach = clamp(F.approach + Math.sign(F.target - F.approach) * dt / 1.6, 0, 1);
+  if (Math.abs(F.target - F.approach) < 0.001) F.approach = F.target;
+  F.amp = clamp(F.amp + (F.rub ? 1 : -1) * dt * 4, 0, 1);
+  if (F.rub) {
+    F.phase += dt * 7;
+    F.timer += dt;
+    if (F.timer > 0.45 && F.moved < 8) { F.timer = 0; spawnFlight(); }
+  }
+  F.fly.forEach(f => f.t += dt / 0.6);
+  const done = F.fly.filter(f => f.t >= 1);
+  done.forEach(f => { if (f.dst === 'rod') F.rodN++; else F.clothN++; });
+  F.fly = F.fly.filter(f => f.t < 1);
+
+  const n = effN();
+  const rodNet = -(n.rod - 16);
+  F.bits.forEach((b, i) => {
+    let tl = 0;
+    if (Math.abs(rodNet) >= 2 && F.approach > 0.97) tl = 50 * clamp((Math.abs(rodNet) - 1) / 4, 0, 1) * (0.88 + 0.12 * Math.cos(i * 1.7));
+    b.lift += (tl - b.lift) * (1 - Math.exp(-dt * 6));
+  });
+}
+function drawObj(g, N, kind) {
+  // σώμα
+  if (kind === 'rod') {
+    rr(g.L, g.cy - g.h / 2, g.w, g.h, 14);
+    ctx.fillStyle = F.mat === 'ebonite' ? '#5a4636' : '#cde7f3'; ctx.fill();
+    ctx.strokeStyle = F.mat === 'ebonite' ? '#3a2c20' : '#7fa9bd'; ctx.lineWidth = 2; ctx.stroke();
+  } else {
+    rr(g.L, g.cy - g.h / 2, g.w, g.h, 8);
+    ctx.fillStyle = F.mat === 'ebonite' ? '#ecd9b0' : '#f3e6f8'; ctx.fill();
+    ctx.strokeStyle = F.mat === 'ebonite' ? '#b89a5e' : '#b79ac4'; ctx.lineWidth = 2; ctx.stroke();
+  }
+  for (let i = 0; i < 16; i++) { const p = ionPos(g, i); charge(p[0], p[1], 1, 7); }
+  for (let i = 0; i < Math.min(N, 24); i++) { const p = slotPos(g, i); charge(p[0], p[1], -1, 7); }
+}
+function drawF() {
+  table(); legend();
+  const rod = geom('rod'), cl = geom('cloth');
+  const n = effN();
+  const rodNet = -(n.rod - 16), clothNet = -(n.cloth - 16);
+
+  // χαρτάκια
+  F.bits.forEach((b, i) => {
+    const bx = 480 + (i - 3) * 38, by = 506 - b.lift;
+    ctx.save(); ctx.translate(bx, by); ctx.rotate(b.rot * (1 - b.lift / 80));
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = '#8f8f8f'; ctx.lineWidth = 1.2;
+    ctx.fillRect(-12, -4, 24, 8); ctx.strokeRect(-12, -4, 24, 8);
+    ctx.restore();
+    if (b.lift > 3 && rodNet !== 0) {
+      const s = rodNet < 0 ? -1 : 1;
+      charge(bx, by - 11, -s, 3.6); charge(bx, by + 11, s, 3.6);
+    }
+  });
+
+  drawObj(cl, F.clothN, 'cloth');
+  drawObj(rod, F.rodN, 'rod');
+
+  // ηλεκτρόνια σε μεταφορά
+  F.fly.forEach(f => {
+    const a = slotPos(geom(f.src), f.srcIdx), b = slotPos(geom(f.dst), f.dstIdx);
+    const t = ease(clamp(f.t, 0, 1));
+    charge(lerp(a[0], b[0], t), lerp(a[1], b[1], t) - Math.sin(Math.PI * t) * 34, -1, 7);
+  });
+
+  text(F.mat === 'ebonite' ? 'ράβδος εβονίτη' : 'γυάλινη ράβδος', rod.L + rod.w / 2, rod.cy - 44, '#333', 15);
+  text(F.mat === 'ebonite' ? 'μάλλινο ύφασμα' : 'μεταξωτό ύφασμα', cl.L + cl.w / 2, cl.cy + 52, '#333', 15);
+  text('χαρτάκια', 480, 560, '#6a6252', 14);
+
+  const status = [];
+  if (F.approach > 0.97) {
+    status.push(Math.abs(rodNet) >= 2
+      ? 'Η φορτισμένη ράβδος έλκει τα ουδέτερα χαρτάκια: πολώνονται, και το άκρο που βλέπει στη ράβδο αποκτά αντίθετο φορτίο, οπότε η έλξη υπερισχύει της άπωσης.'
+      : 'Η ράβδος είναι σχεδόν ουδέτερη και δεν έλκει τα χαρτάκια. Τρίψε την περισσότερο.');
+  } else if (F.rub) {
+    status.push(F.mat === 'ebonite'
+      ? 'Με το τρίψιμο μεταφέρονται ηλεκτρόνια από το μάλλινο ύφασμα στον εβονίτη. Ο εβονίτης αποκτά περίσσεια ηλεκτρονίων.'
+      : 'Με το τρίψιμο μεταφέρονται ηλεκτρόνια από το γυαλί στο μεταξωτό ύφασμα. Το γυαλί μένει με έλλειμμα ηλεκτρονίων.');
+  } else if (F.moved === 0) {
+    status.push('Τα δύο σώματα είναι ουδέτερα (ίσος αριθμός θετικών και αρνητικών φορτίων). Πάτα «Τρίψιμο».');
+  } else {
+    status.push('Το τρίψιμο σταμάτησε. Τα δύο σώματα έχουν αντίθετα φορτία ίσου μεγέθους. Δοκίμασε να πλησιάσεις τη ράβδο στα χαρτάκια.');
+  }
+  if (F.moved >= 8 && !F.fly.length) status.push('Έφτασε το μέγιστο φορτίο του μοντέλου.');
+  setStatus(status.join(' '));
+  setCards([
+    ['Φορτίο ράβδου', Q(rodNet)],
+    ['Φορτίο υφάσματος', Q(clothNet)],
+    ['Ηλεκτρόνια που μεταφέρθηκαν', F.moved - F.fly.length],
+    ['Συνολικό φορτίο', Q(rodNet + clothNet) + ' (διατήρηση)']
+  ]);
+}
+
+/* =====================================================================
+   ΚΟΙΝΑ ΓΙΑ ΤΙΣ ΚΑΡΤΕΛΕΣ 2 & 3 — ΣΦΑΙΡΑ
+   ===================================================================== */
+const SP = { cx: 640, cy: 260, R: 92, ions: 12, rE: 64, rI: 46 };
+const P0rel = [SP.R * Math.cos(0.7), SP.R * Math.sin(0.7)];            // σημείο σύνδεσης γείωσης
+const P0 = [SP.cx + P0rel[0], SP.cy + P0rel[1]];
+
+function sphereTargets(n, c, dir) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const phi = -Math.PI + 2 * Math.PI * (i + 0.5) / n;
+    const a = dir + phi * (1 - c);
+    out.push([SP.rE * Math.cos(a), SP.rE * Math.sin(a)]);
+  }
+  return out;
+}
+function makeS(extra) {
+  const S = { extra: extra || 0, e: [], leaving: [] };
+  sphereTargets(SP.ions + S.extra, 0, 0).forEach(p => S.e.push({ x: p[0], y: p[1] }));
+  return S;
+}
+function stepSphere(S, dt, c, dir, spawn, flyTo) {
+  const n = SP.ions + S.extra;
+  const tg = sphereTargets(n, c, dir);
+  while (S.e.length < n) S.e.push({ x: spawn[0], y: spawn[1] });
+  while (S.e.length > n) {
+    const e = S.e.pop();
+    S.leaving.push({ x: SP.cx + e.x, y: SP.cy + e.y, tx: flyTo[0], ty: flyTo[1], t: 0 });
+  }
+  const k = 1 - Math.exp(-dt * 9);
+  S.e.forEach((e, i) => { e.x += (tg[i][0] - e.x) * k; e.y += (tg[i][1] - e.y) * k; });
+  const k2 = 1 - Math.exp(-dt * 6);
+  S.leaving.forEach(l => { l.t += dt / 0.6; l.x += (l.tx - l.x) * k2; l.y += (l.ty - l.y) * k2; });
+  S.leaving = S.leaving.filter(l => l.t < 1);
+}
+function drawStand() {
+  table();
+  ctx.fillStyle = '#d5dbe4'; ctx.strokeStyle = '#9aa5b6'; ctx.lineWidth = 1.5;
+  rr(SP.cx - 10, SP.cy + SP.R - 8, 20, 512 - (SP.cy + SP.R) + 8, 3); ctx.fill(); ctx.stroke();
+  rr(SP.cx - 62, 498, 124, 14, 4); ctx.fill(); ctx.stroke();
+  text('μονωτική βάση', SP.cx + 18, 455, '#5b667a', 13, 'left');
+}
+function drawSphere(S) {
+  const g = ctx.createRadialGradient(SP.cx - 30, SP.cy - 30, 10, SP.cx, SP.cy, SP.R);
+  g.addColorStop(0, '#fafcff'); g.addColorStop(1, '#cfd8e6');
+  ctx.beginPath(); ctx.arc(SP.cx, SP.cy, SP.R, 0, 2 * Math.PI);
+  ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = '#7d8ba1'; ctx.lineWidth = 3; ctx.stroke();
+  for (let j = 0; j < SP.ions; j++) {
+    const a = j * Math.PI / 6;
+    charge(SP.cx + SP.rI * Math.cos(a), SP.cy + SP.rI * Math.sin(a), 1, 7);
+  }
+  S.e.forEach(e => charge(SP.cx + e.x, SP.cy + e.y, -1, 7));
+  S.leaving.forEach(l => charge(l.x, l.y, -1, 7, 1 - clamp(l.t, 0, 1)));
+  text('μεταλλική σφαίρα', SP.cx, SP.cy - SP.R - 16, '#333', 15);
+}
+// ράβδος με λαβή· επιστρέφει τη θέση του δεξιού άκρου
+function drawChargedRod(gap, sign, count) {
+  const right = SP.cx - SP.R - gap, left = right - 340, cy = SP.cy, h = 48;
+  rr(left, cy - h / 2, 340, h, 14);
+  ctx.fillStyle = sign < 0 ? '#5a4636' : '#cde7f3'; ctx.fill();
+  ctx.strokeStyle = sign < 0 ? '#3a2c20' : '#7fa9bd'; ctx.lineWidth = 2; ctx.stroke();
+  // λαβή
+  ctx.fillStyle = '#aab3c2'; ctx.strokeStyle = '#7f8aa0'; ctx.lineWidth = 1.5;
+  rr(left + 2, cy - h / 2 + 2, 78, h - 4, 12); ctx.fill(); ctx.stroke();
+  text('λαβή', left + 41, cy, '#3b475c', 13);
+  const cols = count / 2;
+  for (let s = 0; s < 10; s++) {
+    const col = s % 5, row = Math.floor(s / 5);
+    if (col < cols) charge(left + 80 + 25 + col * 52, cy + (row ? 11 : -11), sign, 7);
+  }
+  text(sign < 0 ? 'φορτισμένη ράβδος (−)' : 'φορτισμένη ράβδος (+)', left + 170, cy - 42, '#333', 15);
+  return right;
+}
+
+/* =====================================================================
+   ΚΑΡΤΕΛΑ 2 — ΕΠΑΦΗ
+   ===================================================================== */
+const C = Object.assign(makeS(0), { sign: -1, gap: 170, touched: false, rodCount: 10 });
+function cReset() {
+  const s = makeS(0); C.extra = 0; C.e = s.e; C.leaving = []; C.touched = false; C.rodCount = 10;
+  C.gap = 170; $('gap2').value = 170;
+}
+function updC(dt) {
+  C.gap = +$('gap2').value;
+  if (C.gap <= 1 && !C.touched) {
+    C.touched = true; C.rodCount = 6;
+    C.extra += C.sign < 0 ? 4 : -4;
+  }
+  const prox = clamp(1 - C.gap / 150, 0, 1);
+  stepSphere(C, dt, 0.6 * prox, C.sign < 0 ? 0 : Math.PI, [-SP.R, 0], [SP.cx - SP.R - 28, SP.cy]);
+}
+function drawC() {
+  drawStand(); legend();
+  drawSphere(C);
+  drawChargedRod(C.gap, C.sign, C.rodCount);
+
+  let s;
+  if (C.touched && C.gap <= 1) {
+    s = C.sign < 0
+      ? 'Επαφή: ηλεκτρόνια περνούν από την αρνητική ράβδο στη σφαίρα. Η σφαίρα αποκτά περίσσεια ηλεκτρονίων, δηλαδή αρνητικό φορτίο.'
+      : 'Επαφή: ηλεκτρόνια περνούν από τη σφαίρα στη θετική ράβδο. Η σφαίρα μένει με έλλειμμα ηλεκτρονίων, δηλαδή θετικό φορτίο.';
+  } else if (C.touched) {
+    s = 'Η σφαίρα έμεινε φορτισμένη με φορτίο ίδιου προσήμου με τη ράβδο. Η ράβδος έχασε μέρος του φορτίου της. Πάτα «Επαναφορά» για να επαναλάβεις.';
+  } else if (C.gap < 120) {
+    s = 'Η ράβδος είναι κοντά αλλά δεν αγγίζει τη σφαίρα: τα ηλεκτρόνια μετακινούνται προσωρινά (επαγωγή), όμως η σφαίρα παραμένει ουδέτερη. Μείωσε την απόσταση μέχρι να αγγίξει.';
+  } else {
+    s = 'Η σφαίρα είναι ουδέτερη. Πλησίασε τη φορτισμένη ράβδο μέχρι να αγγίξει τη σφαίρα.';
+  }
+  setStatus(s);
+  setCards([
+    ['Φορτίο ράβδου', Q(C.sign * C.rodCount)],
+    ['Φορτίο σφαίρας', Q(-C.extra)],
+    ['Ηλεκτρόνια στη σφαίρα', SP.ions + C.extra + ' (από ' + SP.ions + ' θετικά ιόντα)'],
+    ['Απόσταση ράβδου', fmt(C.gap * 0.1) + ' cm']
+  ]);
+}
+
+/* =====================================================================
+   ΚΑΡΤΕΛΑ 3 — ΕΠΑΓΩΓΗ
+   ===================================================================== */
+const I = Object.assign(makeS(0), { sign: -1, gap: 170, ground: false, tick: 0, flowT: 0, flowDir: 0 });
+function iReset() {
+  const s = makeS(0); I.extra = 0; I.e = s.e; I.leaving = []; I.ground = false; I.tick = 0; I.flowT = 0; I.flowDir = 0;
+  I.gap = 170; $('gap3').value = 170;
+  $('gnd').textContent = '⏚ Σύνδεση γείωσης'; $('gnd').classList.remove('on');
+}
+function proxI() { return clamp(1 - (I.gap - 10) / 150, 0, 1); }
+function updI(dt) {
+  I.gap = +$('gap3').value;
+  const prox = proxI();
+  if (I.ground) {
+    const m = Math.round(6 * prox), target = I.sign < 0 ? -m : m;
+    if (I.extra !== target) {
+      I.tick += dt;
+      if (I.tick > 0.14) {
+        I.tick = 0;
+        const d = Math.sign(target - I.extra);
+        I.extra += d; I.flowDir = d < 0 ? 1 : -1; I.flowT = 0.5;
+      }
+    }
+  }
+  if (I.flowT > 0) I.flowT -= dt;
+  stepSphere(I, dt, 0.6 * prox, I.sign < 0 ? 0 : Math.PI, P0rel, [P0[0] + 50, P0[1]]);
+}
+// τα σημεία της γραμμής γείωσης
+const WIRE = [P0, [P0[0] + 90, P0[1]], [P0[0] + 90, 350], [P0[0] + 90, 395], [P0[0] + 90, 430]];
+function wirePoint(s) { // s από 0 έως 1 κατά μήκος του καλωδίου
+  const segs = [];
+  let total = 0;
+  for (let i = 0; i < WIRE.length - 1; i++) {
+    const l = Math.hypot(WIRE[i + 1][0] - WIRE[i][0], WIRE[i + 1][1] - WIRE[i][1]);
+    segs.push(l); total += l;
+  }
+  let d = s * total;
+  for (let i = 0; i < segs.length; i++) {
+    if (d <= segs[i]) { const t = d / segs[i]; return [lerp(WIRE[i][0], WIRE[i + 1][0], t), lerp(WIRE[i][1], WIRE[i + 1][1], t)]; }
+    d -= segs[i];
+  }
+  return WIRE[WIRE.length - 1];
+}
+function drawWire() {
+  const gx = WIRE[1][0];
+  ctx.strokeStyle = '#444'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(WIRE[0][0], WIRE[0][1]); ctx.lineTo(WIRE[1][0], WIRE[1][1]); ctx.lineTo(gx, 350); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(gx, 395); ctx.lineTo(gx, 430); ctx.stroke();
+  // διακόπτης
+  ctx.fillStyle = '#444';
+  ctx.beginPath(); ctx.arc(gx, 350, 4, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(gx, 395, 4, 0, 7); ctx.fill();
+  ctx.strokeStyle = I.ground ? '#2a9d57' : '#c0392b'; ctx.lineWidth = 3.5;
+  ctx.beginPath(); ctx.moveTo(gx, 395);
+  if (I.ground) ctx.lineTo(gx, 350); else ctx.lineTo(gx + 30, 362);
+  ctx.stroke();
+  // γη
+  ctx.strokeStyle = '#444'; ctx.lineWidth = 3;
+  [[44, 0], [28, 9], [12, 18]].forEach(([w, dy]) => {
+    ctx.beginPath(); ctx.moveTo(gx - w / 2, 430 + dy); ctx.lineTo(gx + w / 2, 430 + dy); ctx.stroke();
+  });
+  text('γη', gx, 466, '#333', 14);
+  text(I.ground ? 'γείωση: ΣΥΝΔΕΔΕΜΕΝΗ' : 'γείωση: αποσυνδεδεμένη', gx - 6, 330, I.ground ? '#1f7a43' : '#a02d22', 13);
+  // ηλεκτρόνια στο καλώδιο
+  if (I.flowT > 0 && I.ground) {
+    for (let k = 0; k < 5; k++) {
+      let s = ((time * 1.8 + k / 5) % 1);
+      if (I.flowDir < 0) s = 1 - s;
+      const p = wirePoint(s);
+      charge(p[0], p[1], -1, 5.5);
+    }
+  }
+}
+function drawI() {
+  drawStand(); legend();
+  drawWire();
+  drawSphere(I);
+  drawChargedRod(I.gap, I.sign, 10);
+
+  const prox = proxI(), near = I.gap < 120;
+  let s;
+  if (I.ground) {
+    if (prox > 0.05) {
+      s = I.sign < 0
+        ? 'Η γείωση επιτρέπει στα ηλεκτρόνια που απωθούνται από την αρνητική ράβδο να φύγουν προς τη γη. Η σφαίρα μένει με έλλειμμα ηλεκτρονίων.'
+        : 'Η γείωση επιτρέπει σε ηλεκτρόνια από τη γη να έρθουν και να εξουδετερώσουν το θετικό άκρο που έλκει η θετική ράβδος. Η σφαίρα αποκτά περίσσεια ηλεκτρονίων.';
+    } else {
+      s = 'Η σφαίρα είναι γειωμένη, αλλά η ράβδος είναι μακριά: η σφαίρα επανέρχεται σε ουδέτερη κατάσταση.';
+    }
+  } else if (I.extra === 0) {
+    s = near
+      ? (I.sign < 0 ? 'Επαγωγή: η αρνητική ράβδος απωθεί τα ελεύθερα ηλεκτρόνια προς την πίσω πλευρά της σφαίρας.' : 'Επαγωγή: η θετική ράβδος έλκει τα ελεύθερα ηλεκτρόνια προς την μπροστινή πλευρά της σφαίρας.')
+        + ' Έχουμε διαχωρισμό φορτίων, αλλά το συνολικό φορτίο της σφαίρας παραμένει 0. Συνέδεσε τη γείωση.'
+      : 'Η σφαίρα είναι ουδέτερη. Πλησίασε τη ράβδο χωρίς να την αγγίξεις.';
+  } else {
+    s = near
+      ? 'Η γείωση αποσυνδέθηκε. Τώρα απομάκρυνε τη ράβδο.'
+      : 'Η σφαίρα έμεινε φορτισμένη με φορτίο αντίθετου προσήμου από της ράβδου, χωρίς καμία επαφή.';
+  }
+  setStatus(s);
+  setCards([
+    ['Φορτίο ράβδου', Q(I.sign * 10)],
+    ['Φορτίο σφαίρας', Q(-I.extra)],
+    ['Γείωση', I.ground ? 'συνδεδεμένη' : 'αποσυνδεδεμένη'],
+    ['Απόσταση ράβδου', fmt(I.gap * 0.1) + ' cm']
+  ]);
+}
+
+/* ---------- ενημέρωση DOM μόνο όταν αλλάζει ---------- */
+let lastStatus = '', lastCards = '';
+function setStatus(s) { if (s !== lastStatus) { lastStatus = s; $('status').textContent = s; } }
+function setCards(arr) {
+  const h = arr.map(([a, b]) => `<div class="card"><b>${a}</b><span>${b}</span></div>`).join('');
+  if (h !== lastCards) { lastCards = h; $('cards').innerHTML = h; }
+}
+const NOTES = {
+  1: 'Τριβή: τα δύο σώματα φορτίζονται με αντίθετα φορτία ίσου μεγέθους, γιατί ηλεκτρόνια περνούν από το ένα στο άλλο και το συνολικό φορτίο διατηρείται. Εβονίτης + μαλλί → η ράβδος γίνεται αρνητική. Γυαλί + μετάξι → η ράβδος γίνεται θετική.',
+  2: 'Επαφή: όταν ένα φορτισμένο σώμα αγγίξει ένα ουδέτερο αγωγό, μέρος του φορτίου μεταφέρεται και ο αγωγός αποκτά φορτίο ΙΔΙΟΥ προσήμου με το φορτισμένο σώμα.',
+  3: 'Επαγωγή (βήματα): 1) πλησίασε τη ράβδο χωρίς να αγγίξει, 2) σύνδεσε τη γείωση, 3) αποσύνδεσε τη γείωση, 4) απομάκρυνε τη ράβδο. Η σφαίρα φορτίζεται με φορτίο ΑΝΤΙΘΕΤΟΥ προσήμου από της ράβδου. Το πλήθος των φορτίων είναι σχηματικό (1 σύμβολο = 1e).'
+};
+
+/* ---------- κύριος βρόχος ---------- */
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  time += dt;
+  ctx.clearRect(0, 0, W, H);
+  if (tab === 1) { updF(dt); drawF(); }
+  else if (tab === 2) { updC(dt); drawC(); }
+  else { updI(dt); drawI(); }
+  requestAnimationFrame(loop);
+}
+
+/* ---------- χειριστήρια ---------- */
+function setTab(n) {
+  tab = n;
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', +b.dataset.t === n));
+  [1, 2, 3].forEach(i => $('ctl' + i).classList.toggle('hide', i !== n));
+  $('note').textContent = NOTES[n];
+  lastStatus = ''; lastCards = '';
+}
+document.querySelectorAll('.tab').forEach(b => b.onclick = () => setTab(+b.dataset.t));
+
+$('mat').onchange = () => { F.mat = $('mat').value; fReset(); };
+$('rub').onclick = () => {
+  F.rub = !F.rub;
+  $('rub').textContent = F.rub ? '⏹ Σταμάτα το τρίψιμο' : '✋ Τρίψιμο';
+  $('rub').classList.toggle('on', F.rub);
+  if (F.rub) { F.target = 0; $('appr').textContent = '⬇ Πλησίασε τη ράβδο στα χαρτάκια'; }
+};
+$('appr').onclick = () => {
+  if (F.target === 0) {
+    F.target = 1; F.rub = false;
+    $('rub').textContent = '✋ Τρίψιμο'; $('rub').classList.remove('on');
+    $('appr').textContent = '⬆ Επίστρεψε τη ράβδο στη θέση τριβής';
+  } else {
+    F.target = 0; $('appr').textContent = '⬇ Πλησίασε τη ράβδο στα χαρτάκια';
+  }
+};
+$('r1').onclick = fReset;
+
+$('sign2').onchange = () => { C.sign = +$('sign2').value; cReset(); };
+$('r2').onclick = cReset;
+
+$('sign3').onchange = () => { I.sign = +$('sign3').value; iReset(); };
+$('gnd').onclick = () => {
+  I.ground = !I.ground; I.tick = 0.14; I.flowT = 0;
+  $('gnd').textContent = I.ground ? '⏚ Αποσύνδεση γείωσης' : '⏚ Σύνδεση γείωσης';
+  $('gnd').classList.toggle('on', I.ground);
+};
+$('r3').onclick = iReset;
+
+setTab(1);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
