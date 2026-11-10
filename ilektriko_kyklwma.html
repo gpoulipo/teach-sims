@@ -7,10 +7,14 @@
 <style>
   *{box-sizing:border-box}
   body{font-family:system-ui,"Segoe UI",Roboto,Arial,sans-serif;margin:0;background:#f4f6f9;color:#1d2433}
-  .wrap{max-width:1000px;margin:0 auto;padding:16px}
+  .wrap{max-width:1400px;margin:0 auto;padding:16px}
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:12px;align-items:start}
+  .col{min-width:0}
+  .col > * + *{margin-top:10px}
+  @media (max-width:1000px){.grid{grid-template-columns:minmax(0,1fr)}}
   h1{font-size:20px;margin:0 0 10px}
   canvas{width:100%;height:auto;background:#fff;border:1px solid #d5dbe5;border-radius:10px;display:block}
-  .panel{background:#fff;border:1px solid #d5dbe5;border-radius:10px;padding:12px 14px;margin-top:12px}
+  .panel{background:#fff;border:1px solid #d5dbe5;border-radius:10px;padding:10px 12px;margin-top:0}
   .panel h2{font-size:14px;margin:0 0 8px;color:#34425a}
   .row{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center}
   .row + .row{margin-top:10px}
@@ -23,17 +27,25 @@
   button.primary{background:#2b6cb0;border-color:#2b6cb0;color:#fff}
   button.primary:hover{background:#245a93}
   button.warn{border-color:#d9a0a0;color:#a02d22}
+  .row.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
+  .row.g2 label{flex-direction:column;align-items:stretch;gap:3px;font-size:12px;color:#5b667a}
+  .row.g2 select{width:100%;color:#1d2433}
   .hide{display:none!important}
-  #status{margin-top:10px;font-size:14px;color:#2f3c55;line-height:1.5;background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 12px;min-height:40px}
+  button.sm{padding:5px 9px;font-size:13px}
+  #status{margin-top:0;font-size:14px;color:#2f3c55;line-height:1.5;background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 12px;min-height:40px}
   #msg{font-size:13px;color:#a02d22}
   .insp{margin-top:10px;padding-top:10px;border-top:1px dashed #d5dbe5;font-size:14px}
   .insp .hint{color:#5b667a}
   .live{font-variant-numeric:tabular-nums;font-weight:600;color:#1f4f8f}
-  .ch select{max-width:calc(100vw - 80px)}
+  .ch select{flex:1 1 110px;min-width:0;max-width:100%}
+  .ch select:nth-of-type(1){flex-basis:100%}
+  .pan input[type=range]{flex:1;min-width:140px}
+  canvas#sc{touch-action:pan-y;cursor:grab}
+  .panb{font-size:13px;color:#b25f00;font-weight:600}
   .ch{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
   .ch + .ch{margin-top:8px}
   .dot{display:inline-block;width:12px;height:12px;border-radius:3px}
-  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-top:12px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-top:0}
   .card{background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 10px}
   .card b{display:block;font-size:12px;color:#5b667a;font-weight:600}
   .card span{font-size:17px;font-variant-numeric:tabular-nums}
@@ -50,71 +62,86 @@
 <body>
 <div class="wrap">
   <h1>Ηλεκτρικό κύκλωμα: πηγή, αντιστάσεις, πυκνωτές, πηνία</h1>
-  <canvas id="cc"></canvas>
-  <div id="status"></div>
-
-  <div class="panel">
-    <h2>Πηγή</h2>
-    <div class="row">
-      <label>Τύπος <select id="srcType"><option value="dc">Μπαταρία (συνεχής)</option><option value="ac">Εναλλασσόμενη</option></select></label>
-      <label><span id="srcVLab">Τάση</span> <select id="srcV"></select></label>
-      <label id="fWrap" class="hide">Συχνότητα f <select id="srcF"></select></label>
-      <label>Εσωτερική αντίσταση r <select id="srcR"></select></label>
+  <div class="grid">
+    <div class="col">
+      <canvas id="cc"></canvas>
+      <div id="status"></div>
+    </div>
+    <div class="col">
+      <div class="panel">
+        <h2>Πηγή</h2>
+        <div class="row g2">
+          <label>Τύπος <select id="srcType"><option value="dc">Μπαταρία (συνεχής)</option><option value="ac">Εναλλασσόμενη</option></select></label>
+          <label><span id="srcVLab">Τάση</span> <select id="srcV"></select></label>
+          <label id="fWrap" class="hide">Συχνότητα f <select id="srcF"></select></label>
+          <label>Εσωτ. αντίσταση r <select id="srcR"></select></label>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Κατασκευή κυκλώματος</h2>
+        <div class="row">
+          <button class="b sm" id="addR" title="Προσθήκη αντίστασης">+ Αντίσταση</button>
+          <button class="b sm" id="addC" title="Προσθήκη πυκνωτή">+ Πυκνωτής</button>
+          <button class="b sm" id="addL" title="Προσθήκη πηνίου">+ Πηνίο</button>
+          <button class="b sm" id="addS" title="Προσθήκη διακόπτη">+ Διακόπτης</button>
+          <button class="b sm" id="addP" title="Προσθήκη παράλληλου τμήματος">+ Παράλληλο</button>
+          <span id="msg"></span>
+        </div>
+        <div class="insp" id="insp"></div>
+      </div>
     </div>
   </div>
 
-  <div class="panel">
-    <h2>Κατασκευή κυκλώματος</h2>
-    <div class="row">
-      <span>Προσθήκη:</span>
-      <button class="b" id="addR">Αντίσταση</button>
-      <button class="b" id="addC">Πυκνωτής</button>
-      <button class="b" id="addL">Πηνίο</button>
-      <button class="b" id="addS">Διακόπτης</button>
-      <button class="b" id="addP">Παράλληλο τμήμα</button>
-      <span id="msg"></span>
+  <div class="grid" style="margin-top:12px">
+    <div class="col">
+      <div class="panel">
+        <div class="row">
+          <button class="b primary" id="play">⏸ Παύση</button>
+          <button class="b" id="reset" title="Εκφόρτιση πυκνωτών, μηδενισμός πηνίων και χρόνου">↺ Επαναφορά</button>
+          <label>Ταχύτητα
+            <select id="speed">
+              <option value="0.25">0,25×</option>
+              <option value="0.5">0,5×</option>
+              <option value="1" selected>1×</option>
+              <option value="2">2×</option>
+            </select>
+          </label>
+          <label><input type="checkbox" id="tbAuto" checked> Αυτόματη κλίμακα</label>
+          <label>Παράθυρο χρόνου <select id="tb" disabled></select></label>
+        </div>
+        <div class="row pan">
+          <button class="b" id="panBack" title="Πίσω μισό παράθυρο">◀ Πίσω</button>
+          <input type="range" id="pos" min="0" max="1000" value="1000" disabled title="Θέση στον χρόνο">
+          <button class="b" id="panFwd" title="Μπροστά μισό παράθυρο">Μπροστά ▶</button>
+          <button class="b" id="zOut" title="Σμίκρυνση: περισσότερος χρόνος στο γράφημα (Ctrl + τροχός)">🔍−</button>
+          <button class="b" id="zIn" title="Μεγέθυνση: λιγότερος χρόνος στο γράφημα (Ctrl + τροχός)">🔍+</button>
+          <button class="b" id="goLive">⏵ Ζωντανά</button>
+          <span class="panb" style="color:#5b667a" id="zoomInfo"></span>
+          <span class="panb" id="panInfo"></span>
+        </div>
+      </div>
+      <canvas id="sc"></canvas>
+      <div class="cards" id="cards"></div>
     </div>
-    <div class="insp" id="insp"></div>
+    <div class="col">
+      <div class="panel">
+        <h2>Γραφήματα και κανάλια</h2>
+        <div id="chs"></div>
+        <div class="row">
+          <button class="b" id="addCh">+ Προσθήκη καναλιού</button>
+          <span style="font-size:12px;color:#5b667a">Έως 8 κανάλια σε 3 γραφήματα.</span>
+        </div>
+        <div class="row" id="pnl"></div>
+        <div style="font-size:12px;color:#5b667a;margin-top:8px">Σύρε το γράφημα αριστερά ή δεξιά (ή χρησιμοποίησε τη μπάρα) για να δεις προηγούμενες στιγμές. Για μεγέθυνση ή σμίκρυνση του χρόνου: κουμπιά 🔍 ή Ctrl + τροχός του ποντικιού.</div>
+      </div>
+    </div>
   </div>
 
-  <div class="panel">
-    <h2>Προσομοίωση</h2>
-    <div class="row">
-      <button class="b primary" id="play">⏸ Παύση</button>
-      <button class="b" id="reset">↺ Επαναφορά (εκφόρτιση)</button>
-      <label>Ταχύτητα
-        <select id="speed">
-          <option value="0.25">0,25×</option>
-          <option value="0.5">0,5×</option>
-          <option value="1" selected>1×</option>
-          <option value="2">2×</option>
-        </select>
-      </label>
-      <label><input type="checkbox" id="tbAuto" checked> Αυτόματη χρονική κλίμακα</label>
-      <label>Χρόνος που φαίνεται στο γράφημα <select id="tb" disabled></select></label>
-    </div>
-  </div>
-
-  <div class="panel">
-    <h2>Γραφήματα (έως 3)</h2>
-    <div id="chs"></div>
-    <div class="row">
-      <label>Εμφάνιση
-        <select id="mode">
-          <option value="sep">Ξεχωριστά διαγράμματα</option>
-          <option value="ov">Επικάλυψη (κανονικοποιημένα, για σύγκριση φάσης)</option>
-        </select>
-      </label>
-    </div>
-  </div>
-  <canvas id="sc" style="margin-top:12px"></canvas>
-
-  <div class="cards" id="cards"></div>
-  <details class="panel">
+  <details class="panel" style="margin-top:12px">
     <summary>Θεωρητικές τιμές μόνιμης κατάστασης</summary>
     <div id="theory" class="tablewrap"></div>
   </details>
-  <div class="note">Όλα τα στοιχεία είναι ιδανικά (ο διακόπτης κλειστός έχει 1 mΩ και ανοικτός 1 GΩ). Η εσωτερική αντίσταση της πηγής είναι τουλάχιστον 0,01 Ω. Θετική φορά ρεύματος είναι η συμβατική (από το + της πηγής). Οι τελείες στα σύρματα δείχνουν τη φορά και σχετικά το μέγεθος του ρεύματος. Άνοιγμα διακόπτη σε κύκλωμα με πηνίο προκαλεί πολύ μεγάλη τάση αυτεπαγωγής (σπινθήρας). Τέτοιες στιγμιαίες υπερτάσεις είναι τόσο σύντομες που δεν χωράνε στην κλίμακα του γραφήματος, όπου φαίνεται μόνο η τάση που ακολουθεί.</div>
+  <div class="note" style="margin-bottom:0">Όλα τα στοιχεία είναι ιδανικά (ο διακόπτης κλειστός έχει 1 mΩ και ανοικτός 1 GΩ). Η εσωτερική αντίσταση της πηγής είναι τουλάχιστον 0,01 Ω. Θετική φορά ρεύματος είναι η συμβατική (από το + της πηγής). Οι τελείες στα σύρματα δείχνουν τη φορά και σχετικά το μέγεθος του ρεύματος. Άνοιγμα διακόπτη σε κύκλωμα με πηνίο προκαλεί πολύ μεγάλη τάση αυτεπαγωγής (σπινθήρας). Τέτοιες στιγμιαίες υπερτάσεις είναι τόσο σύντομες που δεν χωράνε στην κλίμακα του γραφήματος, όπου φαίνεται μόνο η τάση που ακολουθεί.</div>
 </div>
 
 <script>
@@ -331,9 +358,12 @@ function stepOnce(h) {
 }
 
 /* ---------- ιστορικό δειγμάτων ---------- */
-const NS = 900, M = NS + 4;
+const NS = 900, M = NS * 12 + 4;
 const TBL = [1e-3, 2e-3, 5e-3, 10e-3, 20e-3, 50e-3, 100e-3, 200e-3, 500e-3, 1, 2, 5, 10, 20, 50];
 const PLAY = 8;
+let following = true, viewEnd = 0, jr = 0;
+const SPAN_MIN = 90, SPAN_MAX = NS * 8;
+let span = NS;
 let Tw = 0.05, ts = Tw / NS, t0 = 0, ns = 0, nextS = 0, hist = {}, events = [];
 function allocHist() {
   hist = {};
@@ -353,12 +383,12 @@ function resetSim() {
   buildNet();
   t = 0; restart = 2; acc = 0; hPrev = 0;
   simS.V = 0; simS.I = 0; simS.emf = 0;
-  ts = Tw / NS; t0 = 0; ns = 0; events = [];
+  ts = Tw / NS; t0 = 0; ns = 0; events = []; following = true; span = NS;
   Iref = 1e-9;
   allocHist(); record(); nextS = ts;
 }
 function rewindHist() {
-  ts = Tw / NS; t0 = t; ns = 0; events = [];
+  ts = Tw / NS; t0 = t; ns = 0; events = []; following = true; span = NS;
   record(); nextS = t + ts;
 }
 let Iref = 1e-9;
@@ -638,10 +668,24 @@ function renderCircuit(dt) {
 }
 
 /* ---------- γραφήματα ---------- */
-const CHCOL = ['#1f6feb', '#d62839', '#2a9d57'];
-const chans = [{ on: true, key: null, q: 'V' }, { on: true, key: 'src', q: 'I' }, { on: false, key: 'src', q: 'V' }];
+const CHPAL = ['#1f6feb', '#d62839', '#2a9d57', '#8e44ad', '#e67e22', '#00a3a3', '#7f8c8d', '#c2185b'];
+let chSeq = 0;
+const chans = [];
+const panelNorm = [false, false, false];
+const panelY = [1, 1, 1];
+const SL = 82, SR = CW - 14;
+function newChan(key, q, panel) {
+  const used = chans.map(c => c.color);
+  return { id: ++chSeq, on: true, key: key, q: q, panel: panel, color: CHPAL.find(x => used.indexOf(x) < 0) || CHPAL[chans.length % CHPAL.length] };
+}
+function suggestPanel(q) {
+  for (let p = 1; p <= 3; p++) if (chans.some(c => c.on && c.panel === p && c.q === q)) return p;
+  for (let p = 1; p <= 3; p++) if (!chans.some(c => c.panel === p)) return p;
+  return 1;
+}
 let hoverX = null;
-const tmpv = new Float32Array(NS);
+const tmpv = new Float32Array(NS * 2 + 2);
+const unitOf = q => q === 'V' ? 'V' : 'A';
 function niceStep(x) {
   const p = Math.pow(10, Math.floor(Math.log10(x))), m = x / p;
   return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p;
@@ -651,9 +695,11 @@ function chanLabel(c) {
   return (c.q === 'V' ? 'Τάση ' : 'Ένταση ') + (t ? t.short : '');
 }
 function chanData(c) { const h = hist[c.key]; return h ? h[c.q] : null; }
+const jMin = () => Math.max(0, ns - M + 2);
 function robust(arr) {
   let n = 0;
-  for (let i = 0; i < NS; i++) { const j = ns - NS + i; if (j < 0) continue; const v = arr[j % M]; if (isFinite(v)) tmpv[n++] = v; }
+  const st = Math.max(1, Math.floor(span / NS));
+  for (let i = 0; i < span; i += st) { const j = jr - span + 1 + i; if (j < jMin() || j > ns - 1) continue; const v = arr[j % M]; if (isFinite(v)) tmpv[n++] = v; }
   if (n < 2) return { lo: 0, hi: 0 };
   const s = tmpv.slice(0, n).sort();
   return { lo: s[Math.floor(n * 0.01)], hi: s[Math.min(n - 1, Math.floor(n * 0.99))] };
@@ -663,35 +709,60 @@ function smoothRange(c, lo, hi) {
   c.hi = hi > c.hi ? hi : c.hi + (hi - c.hi) * 0.05;
   c.lo = lo < c.lo ? lo : c.lo + (lo - c.lo) * 0.05;
 }
+function updateRange(c) {
+  const r = robust(chanData(c)); let lo = Math.min(r.lo, 0), hi = Math.max(r.hi, 0); const span = hi - lo;
+  if (span < 1e-12) { lo = -(c.q === 'V' ? 1 : 0.001); hi = -lo; } else { lo -= 0.07 * span; hi += 0.07 * span; }
+  smoothRange(c, lo, hi);
+}
+const normScale = c => Math.max(Math.abs(c.lo), Math.abs(c.hi), 1e-12) / 1.07;
+function legendLayout(P) {
+  const g = sctx; g.font = '700 12px system-ui, Arial';
+  const items = []; let x = SL, line = 0;
+  P.list.forEach(c => {
+    const base = chanLabel(c);
+    const text = P.norm ? base + '  (1 = ' + si(normScale(c), unitOf(c.q), 3) + ')' : base + (P.list.length === 1 ? ' (' + unitOf(c.q) + ')' : '');
+    const w = 19 + g.measureText(text).width + 22;
+    if (x + w > SR + 10 && x > SL) { x = SL; line++; }
+    items.push({ c: c, text: text, x: x, line: line }); x += w;
+  });
+  return { items: items, lines: line + 1 };
+}
 function drawScope() {
+  const g = sctx, L = SL, R = SR, pw = R - L;
+  const jrMin = Math.min(ns - 1, jMin() + span - 1);
+  if (following || viewEnd >= ns - 1) { following = true; jr = ns - 1; } else { jr = clamp(viewEnd, jrMin, ns - 1); viewEnd = jr; }
   const act = chans.filter(c => c.on && hist[c.key]);
-  const overlay = $('mode').value === 'ov' && act.length > 1;
-  const np = overlay ? 1 : Math.max(1, act.length);
-  const PH = act.length === 0 ? 110 : overlay ? 300 : (np === 1 ? 250 : np === 2 ? 205 : 175);
-  const H = np * PH + 14;
+  const panels = [1, 2, 3].map(p => ({ p: p, list: act.filter(c => c.panel === p) })).filter(P => P.list.length);
+  if (!panels.length) {
+    if (scH !== 110) { scH = 110; setSize(sc, sctx, CW, 110); }
+    g.clearRect(0, 0, CW, 110);
+    ctext(g, 'Δεν υπάρχει ενεργό κανάλι. Πρόσθεσε ή ενεργοποίησε ένα κανάλι από τα «Γραφήματα και κανάλια».', CW / 2, 50, '#7a8499', 15);
+    return;
+  }
+  const np = panels.length, PHt = np === 1 ? 230 : np === 2 ? 175 : 145;
+  let H = 8;
+  panels.forEach(P => {
+    P.list.forEach(updateRange);
+    P.norm = panelNorm[P.p - 1] || new Set(P.list.map(c => c.q)).size > 1;
+    P.leg = legendLayout(P);
+    P.hdr = 12 + P.leg.lines * 17; P.h = P.hdr + PHt + 26; P.top = H; H += P.h;
+  });
   if (H !== scH) { scH = H; setSize(sc, sctx, CW, H); }
-  const g = sctx; g.clearRect(0, 0, CW, H);
-  if (!act.length) { ctext(g, 'Δεν έχει επιλεγεί γράφημα. Ενεργοποίησε ένα κανάλι από τα «Γραφήματα».', CW / 2, 50, '#7a8499', 15); return; }
-  const L = 82, R = CW - 14, pw = R - L;
-  const tL = t0 + (ns - NS) * ts, tR = t0 + (ns - 1) * ts;
-  const unit = q => q === 'V' ? 'V' : 'A';
+  g.clearRect(0, 0, CW, H);
+  const tL = t0 + (jr - span + 1) * ts, tR = t0 + jr * ts;
   const hx = hoverX === null ? null : clamp(hoverX, L, R);
-  const hi_ = hx === null ? -1 : Math.round((hx - L) / pw * (NS - 1));
-  for (let pi = 0; pi < np; pi++) {
-    const top = pi * PH + 6, pt = top + 22, pb = top + PH - 22, ph = pb - pt;
-    const list = overlay ? act : [act[pi]];
-    // εύρος
-    list.forEach(c => { const d = chanData(c), r = robust(d); let lo = Math.min(r.lo, 0), hi = Math.max(r.hi, 0); const span = hi - lo;
-      if (span < 1e-12) { lo = -(c.q === 'V' ? 1 : 0.001); hi = -lo; } else { lo -= 0.07 * span; hi += 0.07 * span; }
-      smoothRange(c, lo, hi); });
+  const hi_ = hx === null ? -1 : Math.round((hx - L) / pw * (span - 1));
+  panels.forEach(P => {
+    const list = P.list, norm = P.norm, pt = P.top + P.hdr, pb = pt + PHt, ph = PHt;
     let ylo, yhi;
-    if (overlay) { ylo = -1.15; yhi = 1.15; } else { ylo = list[0].lo; yhi = list[0].hi; }
+    if (norm) { ylo = -1.15; yhi = 1.15; }
+    else { ylo = Math.min.apply(null, list.map(c => c.lo)); yhi = Math.max.apply(null, list.map(c => c.hi)); }
+    const yz = panelY[P.p - 1] || 1;
+    if (yz !== 1) { const mid = (ylo + yhi) / 2, half = (yhi - ylo) / 2 / yz; ylo = mid - half; yhi = mid + half; }
     const Y = v => pb - (v - ylo) / (yhi - ylo) * ph;
-    // πλαίσιο
     g.fillStyle = '#fbfcfe'; g.fillRect(L, pt, pw, ph);
     g.strokeStyle = '#d5dbe5'; g.lineWidth = 1; g.strokeRect(L + 0.5, pt + 0.5, pw, ph);
-    // οριζόντιες γραμμές
-    const step = overlay ? 0.5 : niceStep((yhi - ylo) / 4);
+    const step = norm ? 0.5 : niceStep((yhi - ylo) / 4);
     const first = Math.ceil(ylo / step - 1e-9) * step;
     g.font = '600 11px system-ui, Arial'; g.textAlign = 'right'; g.textBaseline = 'middle';
     for (let v = first; v <= yhi + 1e-12; v += step) {
@@ -699,66 +770,69 @@ function drawScope() {
       g.strokeStyle = zero ? '#8b97ab' : '#e6eaf1'; g.lineWidth = zero ? 1.4 : 1;
       g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.stroke();
       g.fillStyle = '#5b667a';
-      g.fillText(overlay ? num(v, 2) : (zero ? '0' : si(v, unit(list[0].q), 2)), L - 6, y);
+      g.fillText(norm ? num(v, 2) : (zero ? '0' : si(v, unitOf(list[0].q), 2)), L - 6, y);
     }
-    // κατακόρυφες γραμμές και ώρα
     g.textAlign = 'center';
     for (let k = 0; k <= 5; k++) {
       const x = L + pw * k / 5, tt = tL + (tR - tL) * k / 5;
       g.strokeStyle = '#eef1f6'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, pt); g.lineTo(x, pb); g.stroke();
       if (tt >= -1e-12) { g.fillStyle = '#5b667a'; g.fillText(si(Math.max(tt, 0), 's', 3), clamp(x, L + 22, R - 22), pb + 11); }
     }
-    // γεγονότα
     for (const ev of events) {
       if (ev.t < tL || ev.t > tR) continue;
       const x = L + (ev.t - tL) / (tR - tL) * pw;
       g.save(); g.strokeStyle = '#e8890c'; g.setLineDash([4, 3]); g.lineWidth = 1.2; g.beginPath(); g.moveTo(x, pt); g.lineTo(x, pb); g.stroke(); g.restore();
       g.font = '600 10px system-ui, Arial'; g.textAlign = 'left'; g.fillStyle = '#b25f00'; g.fillText(ev.label, x + 3, pt + 8);
     }
-    // καμπύλες
     list.forEach(c => {
-      const d = chanData(c); const col = CHCOL[chans.indexOf(c)];
-      const sc_ = overlay ? Math.max(Math.abs(c.lo), Math.abs(c.hi), 1e-12) / 1.07 : 1;
+      const d = chanData(c), sc_ = norm ? normScale(c) : 1;
       g.save(); g.beginPath(); g.rect(L, pt, pw, ph); g.clip();
-      g.strokeStyle = col; g.lineWidth = 2.2; g.lineJoin = 'round'; g.beginPath();
-      let started = false;
-      for (let i = 0; i < NS; i++) {
-        const j = ns - NS + i; if (j < 0) { started = false; continue; }
-        const v = d[j % M]; const x = L + i / (NS - 1) * pw, y = Y(overlay ? v / sc_ : v);
-        if (!started) { g.moveTo(x, y); started = true; } else g.lineTo(x, y);
+      g.strokeStyle = c.color; g.lineWidth = 2.2; g.lineJoin = 'round'; g.beginPath();
+      const j0 = jr - span + 1, jlo = jMin();
+      if (span <= pw) {
+        let started = false;
+        for (let i = 0; i < span; i++) {
+          const j = j0 + i; if (j < jlo || j > ns - 1) { started = false; continue; }
+          const v = d[j % M]; const x = L + i / (span - 1) * pw, y = Y(norm ? v / sc_ : v);
+          if (!started) { g.moveTo(x, y); started = true; } else g.lineTo(x, y);
+        }
+      } else {
+        const cols = Math.floor(pw); let up = true, started = false;
+        for (let k = 0; k < cols; k++) {
+          const ra = j0 + Math.floor(k * span / cols), rb = j0 + Math.floor((k + 1) * span / cols) - 1;
+          if (rb < jlo || ra > ns - 1) { started = false; continue; }
+          const a = Math.max(ra, jlo), b2 = Math.min(rb, ns - 1);
+          let mn = Infinity, mx = -Infinity;
+          for (let j = a; j <= b2; j++) { const v = d[j % M]; if (v < mn) mn = v; if (v > mx) mx = v; }
+          const x = L + k + 0.5, y1 = Y(norm ? mn / sc_ : mn), y2 = Y(norm ? mx / sc_ : mx);
+          if (!started) { g.moveTo(x, up ? y1 : y2); started = true; } else g.lineTo(x, up ? y1 : y2);
+          g.lineTo(x, up ? y2 : y1); up = !up;
+        }
       }
       g.stroke(); g.restore();
     });
-    // τίτλος / υπόμνημα
-    g.textBaseline = 'middle';
-    if (overlay) {
-      let lx = L;
-      list.forEach(c => {
-        const col = CHCOL[chans.indexOf(c)], sc_ = Math.max(Math.abs(c.lo), Math.abs(c.hi), 1e-12) / 1.07;
-        const s = chanLabel(c) + '  (1 = ' + si(sc_, unit(c.q), 3) + ')';
-        g.fillStyle = col; g.fillRect(lx, top + 5, 14, 4);
-        g.font = '700 12px system-ui, Arial'; g.textAlign = 'left'; g.fillText(s, lx + 19, top + 8);
-        lx += 19 + g.measureText(s).width + 22;
-      });
-    } else {
-      const c = list[0], col = CHCOL[chans.indexOf(c)];
-      g.fillStyle = col; g.fillRect(L, top + 5, 14, 4);
-      g.font = '700 12px system-ui, Arial'; g.textAlign = 'left'; g.fillText(chanLabel(c) + ' (' + unit(c.q) + ')', L + 19, top + 8);
-    }
+    // υπόμνημα
+    g.textBaseline = 'middle'; g.font = '700 12px system-ui, Arial'; g.textAlign = 'left';
+    P.leg.items.forEach(it => {
+      const ly = P.top + 9 + it.line * 17;
+      g.fillStyle = it.c.color; g.fillRect(it.x, ly - 2, 14, 4); g.fillText(it.text, it.x + 19, ly);
+    });
+    ctext(g, 'Γράφημα ' + P.p, R - 2, P.top + 9, '#9aa6ba', 11, 'right', 700);
+    if (!following && P === panels[0]) ctext(g, '⏪ παρελθόν: πάτα «Ζωντανά»', R - 2, P.top + 22, '#b25f00', 11, 'right', 700);
     // δείκτης ποντικιού
-    if (hx !== null && ns - NS + hi_ >= 0) {
+    if (hx !== null && jr - span + 1 + hi_ >= jMin() && jr - span + 1 + hi_ <= ns - 1) {
       g.strokeStyle = '#556'; g.lineWidth = 1; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(hx, pt); g.lineTo(hx, pb); g.stroke(); g.setLineDash([]);
-      const j = ns - NS + hi_;
-      const lines = [si(t0 + j * ts, 's', 3)];
-      list.forEach(c => lines.push(overlay ? chanLabel(c) + ': ' + si(chanData(c)[j % M], unit(c.q), 3) : si(chanData(c)[j % M], unit(c.q), 3)));
-      g.font = '700 12px system-ui, Arial'; g.textAlign = 'left';
-      const bw = Math.max(...lines.map(s => g.measureText(s).width)) + 14, bh = lines.length * 16 + 6;
+      const j = jr - span + 1 + hi_;
+      const lines = [{ s: si(t0 + j * ts, 's', 3), col: '#34425a' }];
+      list.forEach(c => lines.push({ s: (list.length > 1 ? chanLabel(c) + ': ' : '') + si(chanData(c)[j % M], unitOf(c.q), 3), col: c.color }));
+      g.font = '700 12px system-ui, Arial'; g.textAlign = 'left'; g.textBaseline = 'middle';
+      const bw = Math.max.apply(null, lines.map(o => g.measureText(o.s).width)) + 14, bh = lines.length * 16 + 6;
       let bx = hx + 10; if (bx + bw > R) bx = hx - 10 - bw;
       g.fillStyle = 'rgba(255,255,255,.94)'; g.strokeStyle = '#9aa6ba'; g.lineWidth = 1;
       rrect(g, bx, pt + 8, bw, bh, 6); g.fill(); g.stroke();
-      lines.forEach((s, i) => { g.fillStyle = i === 0 ? '#34425a' : (overlay ? CHCOL[chans.indexOf(list[i - 1])] : CHCOL[chans.indexOf(list[0])]); g.fillText(s, bx + 7, pt + 8 + 11 + i * 16); });
+      lines.forEach((o, i) => { g.fillStyle = o.col; g.fillText(o.s, bx + 7, pt + 8 + 11 + i * 16); });
     }
-  }
+  });
 }
 
 /* ---------- στοιχεία διεπαφής ---------- */
@@ -803,15 +877,25 @@ function renderChans() {
     const cb = h('input', { type: 'checkbox' }); cb.checked = c.on; cb.onchange = () => { c.on = cb.checked; };
     const s1 = mkSelect(tg.map(q => [q.key, q.label]), c.key, v => { c.key = v; });
     const s2 = mkSelect([['V', 'Τάση (V)'], ['I', 'Ένταση (A)']], c.q, v => { c.q = v; });
-    box.append(h('div', { class: 'ch' }, h('span', { class: 'dot', style: 'background:' + CHCOL[i] }), h('label', null, cb, 'Κανάλι ' + (i + 1)), s1, s2));
+    const s3 = mkSelect([[1, 'Γράφημα 1'], [2, 'Γράφημα 2'], [3, 'Γράφημα 3']], c.panel, v => { c.panel = +v; });
+    const rm = h('button', { class: 'b warn', title: 'Αφαίρεση καναλιού', onclick: () => { chans.splice(chans.indexOf(c), 1); renderChans(); } }, '✕');
+    box.append(h('div', { class: 'ch' }, h('span', { class: 'dot', style: 'background:' + c.color }), h('label', null, cb, 'Κανάλι ' + (i + 1)), s1, s2, s3, rm));
   });
+  $('addCh').disabled = chans.length >= 8;
+  const pn = $('pnl'); pn.innerHTML = '';
+  [1, 2, 3].forEach(p => {
+    const cb = h('input', { type: 'checkbox' }); cb.checked = panelNorm[p - 1]; cb.onchange = () => { panelNorm[p - 1] = cb.checked; };
+    const ys = mkSelect([[0.25, '÷4'], [0.5, '÷2'], [1, 'αυτόματη'], [2, '×2'], [4, '×4'], [8, '×8'], [16, '×16']], panelY[p - 1], v => { panelY[p - 1] = +v; });
+    pn.append(h('div', { class: 'row', style: 'width:100%;gap:6px 12px' }, h('b', null, 'Γράφημα ' + p + ':'), h('label', null, cb, 'κανονικοποίηση'), h('label', null, 'κλίμακα Υ ', ys)));
+  });
+  pn.append(h('span', { style: 'font-size:13px;color:#5b667a' }, 'Όταν σε ένα γράφημα υπάρχουν και τάση και ένταση, εμφανίζεται αυτόματα κανονικοποιημένο (κάθε καμπύλη ±1), ώστε να συγκρίνεις μορφή και φάση.'));
 }
-function addToGraph(key, q) {
-  let c = chans.find(x => !x.on);
-  if (!c) { c = chans[graphRot % 3]; graphRot++; }
-  c.on = true; c.key = key; c.q = q; renderChans();
+function addChannel(key, q) {
+  if (chans.length >= 8) { msg('Έως 8 κανάλια.'); return; }
+  chans.push(newChan(key, q, suggestPanel(q)));
+  renderChans();
 }
-let graphRot = 2;
+function addToGraph(key, q) { addChannel(key, q); }
 let msgTimer = 0;
 function msg(s) { $('msg').textContent = s; clearTimeout(msgTimer); msgTimer = setTimeout(() => { $('msg').textContent = ''; }, 3500); }
 
@@ -893,7 +977,7 @@ function addBranch(bi) {
 }
 function renderInsp() {
   const box = $('insp'); box.innerHTML = '';
-  if (!sel) { box.append(h('span', { class: 'hint' }, 'Κάνε κλικ σε ένα στοιχείο του κυκλώματος για να το επεξεργαστείς (στους διακόπτες το κλικ τον ανοίγει ή τον κλείνει). Αν δεν είναι επιλεγμένο τίποτα, τα νέα στοιχεία μπαίνουν στο τέλος. Με επιλεγμένο στοιχείο μπαίνουν μετά από αυτό, στον ίδιο κλάδο.')); return; }
+  if (!sel) { box.append(h('span', { class: 'hint' }, 'Κλικ σε στοιχείο για επεξεργασία (οι διακόπτες ανοίγουν ή κλείνουν). Τα νέα στοιχεία μπαίνουν μετά το επιλεγμένο ή στο τέλος.')); return; }
   if (sel.kind === 'p') {
     const bi = findBlock(sel.uid), b = blocks[bi];
     box.append(
@@ -929,7 +1013,7 @@ function renderInsp() {
 function fillSource() {
   const ty = src.type, vs = $('srcV'); vs.innerHTML = '';
   const list = ty === 'dc' ? [1.5, 3, 4.5, 6, 9, 12, 24] : [5, 10, 12, 15, 20, 30];
-  list.forEach(v => vs.append(h('option', { value: String(v) }, ty === 'dc' ? num(v) + ' V' : num(v) + ' V (ενεργός ' + num(v / Math.SQRT2) + ' V)')));
+  list.forEach(v => vs.append(h('option', { value: String(v) }, ty === 'dc' ? num(v) + ' V' : num(v) + ' V (εν. ' + num(v / Math.SQRT2) + ' V)')));
   vs.value = String(ty === 'dc' ? src.vdc : src.vac);
   $('srcVLab').textContent = ty === 'dc' ? 'Τάση (ΗΕΔ)' : 'Μέγιστη τάση Vmax';
   $('fWrap').classList.toggle('hide', ty === 'dc');
@@ -940,7 +1024,7 @@ $('srcF').onchange = () => { src.f = +$('srcF').value; changed('src'); };
 $('srcR').onchange = () => { src.r = +$('srcR').value; changed('src'); };
 [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000].forEach(f => $('srcF').append(h('option', { value: String(f) }, num(f) + ' Hz')));
 $('srcF').value = '50';
-[[0.01, '0,01 Ω (σχεδόν ιδανική)'], [0.1, '0,1 Ω'], [0.5, '0,5 Ω'], [1, '1 Ω'], [2, '2 Ω'], [5, '5 Ω'], [10, '10 Ω']].forEach(o => $('srcR').append(h('option', { value: String(o[0]) }, o[1])));
+[[0.01, '0,01 Ω (ιδανική)'], [0.1, '0,1 Ω'], [0.5, '0,5 Ω'], [1, '1 Ω'], [2, '2 Ω'], [5, '5 Ω'], [10, '10 Ω']].forEach(o => $('srcR').append(h('option', { value: String(o[0]) }, o[1])));
 $('srcR').value = '0.01';
 
 /* χρονική κλίμακα */
@@ -966,6 +1050,7 @@ $('addR').onclick = () => addItem('R'); $('addC').onclick = () => addItem('C'); 
 $('addS').onclick = () => addItem('S'); $('addP').onclick = () => addItem('P');
 $('play').onclick = () => { running = !running; $('play').textContent = running ? '⏸ Παύση' : '▶ Συνέχεια'; };
 $('reset').onclick = () => { resetSim(); };
+$('addCh').onclick = () => { const key = sel ? (sel.kind === 'e' ? 'e' + sel.uid : 'p' + sel.uid) : 'src'; addChannel(key, 'V'); };
 
 /* ποντίκι */
 function pos(cv, ev, W_, H_) { const r = cv.getBoundingClientRect(); return [(ev.clientX - r.left) * W_ / r.width, (ev.clientY - r.top) * H_ / r.height]; }
@@ -981,8 +1066,53 @@ cc.addEventListener('mousemove', ev => {
   const p = pos(cc, ev, CW, CH);
   cc.style.cursor = hits.some(q => p[0] >= q.x && p[0] <= q.x + q.w && p[1] >= q.y && p[1] <= q.y + q.h) ? 'pointer' : 'default';
 });
-sc.addEventListener('pointermove', ev => { hoverX = pos(sc, ev, CW, scH || CH)[0]; });
+let drag = null;
+const jrMinNow = () => Math.min(ns - 1, jMin() + span - 1);
+function setView(j) { const mn = jrMinNow(); j = clamp(Math.round(j), mn, ns - 1); if (j >= ns - 1) { following = true; } else { following = false; viewEnd = j; } }
+sc.addEventListener('pointerdown', ev => { drag = { x: ev.clientX, j0: jr }; try { sc.setPointerCapture(ev.pointerId); } catch (e) {} sc.style.cursor = 'grabbing'; });
+sc.addEventListener('pointermove', ev => {
+  hoverX = pos(sc, ev, CW, scH || CH)[0];
+  if (drag) {
+    const r = sc.getBoundingClientRect(), pxPer = (r.width * (SR - SL) / CW) / (span - 1);
+    setView(drag.j0 - (ev.clientX - drag.x) / pxPer);
+  }
+});
+const endDrag = () => { drag = null; sc.style.cursor = 'grab'; };
+sc.addEventListener('pointerup', endDrag); sc.addEventListener('pointercancel', endDrag);
 sc.addEventListener('pointerleave', () => { hoverX = null; });
+$('panBack').onclick = () => setView(jr - span / 2);
+$('panFwd').onclick = () => setView(jr + span / 2);
+$('goLive').onclick = () => { following = true; };
+function zoomBy(f, frac) {
+  const S0 = span, S1 = clamp(Math.round(S0 * f), SPAN_MIN, SPAN_MAX);
+  if (S1 === S0) return;
+  if (following) { span = S1; return; }
+  const jc = jr - S0 + 1 + frac * (S0 - 1);
+  span = S1;
+  setView(jc - frac * (S1 - 1) + S1 - 1);
+}
+$('zIn').onclick = () => zoomBy(0.5, 0.5);
+$('zOut').onclick = () => zoomBy(2, 0.5);
+sc.addEventListener('wheel', ev => {
+  if (!(ev.ctrlKey || ev.altKey)) return;
+  ev.preventDefault();
+  const r = sc.getBoundingClientRect(), x = (ev.clientX - r.left) * CW / r.width;
+  zoomBy(ev.deltaY < 0 ? 0.8 : 1.25, clamp((x - SL) / (SR - SL), 0, 1));
+}, { passive: false });
+$('pos').oninput = () => { const mn = jrMinNow(), v = +$('pos').value; if (v >= 1000) following = true; else setView(mn + v / 1000 * (ns - 1 - mn)); };
+let lastPos = -1, lastInfo = '';
+function updatePanUI() {
+  const mn = jrMinNow(), can = ns - 1 > mn;
+  const pe = $('pos'); if (pe.disabled === can) pe.disabled = !can;
+  const val = can ? Math.round(1000 * (jr - mn) / (ns - 1 - mn)) : 1000;
+  if (val !== lastPos && document.activeElement !== pe) { pe.value = val; lastPos = val; }
+  const info = following ? '' : 'Προβολή παρελθόντος: ' + si(t0 + (jr - span + 1) * ts, 's') + ' έως ' + si(t0 + jr * ts, 's');
+  if (info !== lastInfo) { lastInfo = info; $('panInfo').textContent = info; }
+  $('goLive').classList.toggle('primary', !following);
+  const zi = 'Εύρος: ' + si(span * ts, 's');
+  if ($('zoomInfo').textContent !== zi) $('zoomInfo').textContent = zi;
+  $('zIn').disabled = span <= SPAN_MIN; $('zOut').disabled = span >= SPAN_MAX;
+}
 
 /* ζωντανές ενδείξεις */
 let lastLive = 0;
@@ -1001,7 +1131,7 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   if (running) advance(dt);
-  renderCircuit(dt); drawScope(); updateLive(now);
+  renderCircuit(dt); drawScope(); updatePanUI(); updateLive(now);
   requestAnimationFrame(frame);
 }
 
@@ -1010,14 +1140,14 @@ initDefault();
 fillSource();
 Tw = 0.05;
 resetSim();
-chans[0].key = 'e' + blocks[2].e.uid; chans[0].q = 'V';
-chans[1].key = 'src'; chans[1].q = 'I';
+chans.push(newChan('e' + blocks[2].e.uid, 'V', 1));
+chans.push(newChan('src', 'I', 2));
 renderChans();
 $('tb').value = String(Tw);
 applyAuto();
 computeTheory();
 renderInsp();
-window.__sim = { get t() { return t; }, src: src, get blocks() { return blocks; }, get net() { return net; }, simS: simS, changed: changed, get Tw() { return Tw; }, get theory() { return theory; }, advance: advance, setRunning: v => { running = v; }, chans: chans, hist: () => hist, get ns() { return ns; }, M: M, NS: NS, toggleSwitch: toggleSwitch, resetSim: resetSim };
+window.__sim = { get t() { return t; }, src: src, get blocks() { return blocks; }, get net() { return net; }, simS: simS, changed: changed, get Tw() { return Tw; }, get theory() { return theory; }, advance: advance, setRunning: v => { running = v; }, chans: chans, hist: () => hist, get ns() { return ns; }, M: M, NS: NS, toggleSwitch: toggleSwitch, resetSim: resetSim, get following() { return following; }, get jr() { return jr; }, get span() { return span; } };
 requestAnimationFrame(frame);
 })();
 </script>
