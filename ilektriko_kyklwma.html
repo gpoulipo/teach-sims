@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ηλεκτρικό κύκλωμα: πηγή, R, C, L</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:system-ui,"Segoe UI",Roboto,Arial,sans-serif;margin:0;background:#f4f6f9;color:#1d2433}
+  .wrap{max-width:1000px;margin:0 auto;padding:16px}
+  h1{font-size:20px;margin:0 0 10px}
+  canvas{width:100%;height:auto;background:#fff;border:1px solid #d5dbe5;border-radius:10px;display:block}
+  .panel{background:#fff;border:1px solid #d5dbe5;border-radius:10px;padding:12px 14px;margin-top:12px}
+  .panel h2{font-size:14px;margin:0 0 8px;color:#34425a}
+  .row{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center}
+  .row + .row{margin-top:10px}
+  label{font-size:14px;display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 8px;max-width:100%}
+  select{font:inherit;font-size:14px;padding:5px 8px;border-radius:6px;border:1px solid #9aa6ba;background:#fff;max-width:100%;min-width:0}
+  select:disabled{background:#eef1f6;color:#7a8499}
+  button.b{font:inherit;font-size:14px;padding:7px 14px;border-radius:8px;border:1px solid #9aa6ba;background:#f0f3f8;cursor:pointer}
+  button.b:hover{background:#e3e9f3}
+  button.b:disabled{opacity:.5;cursor:default}
+  button.primary{background:#2b6cb0;border-color:#2b6cb0;color:#fff}
+  button.primary:hover{background:#245a93}
+  button.warn{border-color:#d9a0a0;color:#a02d22}
+  .hide{display:none!important}
+  #status{margin-top:10px;font-size:14px;color:#2f3c55;line-height:1.5;background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 12px;min-height:40px}
+  #msg{font-size:13px;color:#a02d22}
+  .insp{margin-top:10px;padding-top:10px;border-top:1px dashed #d5dbe5;font-size:14px}
+  .insp .hint{color:#5b667a}
+  .live{font-variant-numeric:tabular-nums;font-weight:600;color:#1f4f8f}
+  .ch select{max-width:calc(100vw - 80px)}
+  .ch{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+  .ch + .ch{margin-top:8px}
+  .dot{display:inline-block;width:12px;height:12px;border-radius:3px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-top:12px}
+  .card{background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 10px}
+  .card b{display:block;font-size:12px;color:#5b667a;font-weight:600}
+  .card span{font-size:17px;font-variant-numeric:tabular-nums}
+  details.panel summary{cursor:pointer;font-weight:600;font-size:14px;color:#34425a}
+  table{border-collapse:collapse;width:100%;font-size:13px;margin-top:10px;font-variant-numeric:tabular-nums}
+  th,td{border-bottom:1px solid #e3e8f0;padding:5px 8px;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  th{color:#5b667a;font-weight:600}
+  tr.sub td:first-child{padding-left:22px}
+  .tablewrap{overflow-x:auto}
+  .note{font-size:13px;color:#46536b;margin-top:10px;line-height:1.5;background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Ηλεκτρικό κύκλωμα: πηγή, αντιστάσεις, πυκνωτές, πηνία</h1>
+  <canvas id="cc"></canvas>
+  <div id="status"></div>
+
+  <div class="panel">
+    <h2>Πηγή</h2>
+    <div class="row">
+      <label>Τύπος <select id="srcType"><option value="dc">Μπαταρία (συνεχής)</option><option value="ac">Εναλλασσόμενη</option></select></label>
+      <label><span id="srcVLab">Τάση</span> <select id="srcV"></select></label>
+      <label id="fWrap" class="hide">Συχνότητα f <select id="srcF"></select></label>
+      <label>Εσωτερική αντίσταση r <select id="srcR"></select></label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Κατασκευή κυκλώματος</h2>
+    <div class="row">
+      <span>Προσθήκη:</span>
+      <button class="b" id="addR">Αντίσταση</button>
+      <button class="b" id="addC">Πυκνωτής</button>
+      <button class="b" id="addL">Πηνίο</button>
+      <button class="b" id="addS">Διακόπτης</button>
+      <button class="b" id="addP">Παράλληλο τμήμα</button>
+      <span id="msg"></span>
+    </div>
+    <div class="insp" id="insp"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Προσομοίωση</h2>
+    <div class="row">
+      <button class="b primary" id="play">⏸ Παύση</button>
+      <button class="b" id="reset">↺ Επαναφορά (εκφόρτιση)</button>
+      <label>Ταχύτητα
+        <select id="speed">
+          <option value="0.25">0,25×</option>
+          <option value="0.5">0,5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="tbAuto" checked> Αυτόματη χρονική κλίμακα</label>
+      <label>Χρόνος που φαίνεται στο γράφημα <select id="tb" disabled></select></label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Γραφήματα (έως 3)</h2>
+    <div id="chs"></div>
+    <div class="row">
+      <label>Εμφάνιση
+        <select id="mode">
+          <option value="sep">Ξεχωριστά διαγράμματα</option>
+          <option value="ov">Επικάλυψη (κανονικοποιημένα, για σύγκριση φάσης)</option>
+        </select>
+      </label>
+    </div>
+  </div>
+  <canvas id="sc" style="margin-top:12px"></canvas>
+
+  <div class="cards" id="cards"></div>
+  <details class="panel">
+    <summary>Θεωρητικές τιμές μόνιμης κατάστασης</summary>
+    <div id="theory" class="tablewrap"></div>
+  </details>
+  <div class="note">Όλα τα στοιχεία είναι ιδανικά (ο διακόπτης κλειστός έχει 1 mΩ και ανοικτός 1 GΩ). Η εσωτερική αντίσταση της πηγής είναι τουλάχιστον 0,01 Ω. Θετική φορά ρεύματος είναι η συμβατική (από το + της πηγής). Οι τελείες στα σύρματα δείχνουν τη φορά και σχετικά το μέγεθος του ρεύματος. Άνοιγμα διακόπτη σε κύκλωμα με πηνίο προκαλεί πολύ μεγάλη τάση αυτεπαγωγής (σπινθήρας). Τέτοιες στιγμιαίες υπερτάσεις είναι τόσο σύντομες που δεν χωράνε στην κλίμακα του γραφήματος, όπου φαίνεται μόνο η τάση που ακολουθεί.</div>
+</div>
+
+<script>
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const dpr = window.devicePixelRatio || 1;
+const CW = 960, CH = 326;
+const cc = $('cc'), sc = $('sc');
+const cctx = cc.getContext('2d'), sctx = sc.getContext('2d');
+function setSize(cv, ctx, w, hh) {
+  cv.width = Math.round(w * dpr); cv.height = Math.round(hh * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+setSize(cc, cctx, CW, CH);
+let scH = 0;
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+/* ---------- μορφοποίηση αριθμών ---------- */
+const SIP = [[1e9, 'G'], [1e6, 'M'], [1e3, 'k'], [1, ''], [1e-3, 'm'], [1e-6, 'μ'], [1e-9, 'n'], [1e-12, 'p']];
+function num(x, sig) {
+  sig = sig || 3;
+  if (!isFinite(x)) return '∞';
+  if (x === 0) return '0';
+  let s = Math.abs(x).toPrecision(sig);
+  if (s.indexOf('e') >= 0) s = String(Number(s));
+  else if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return (x < 0 ? '−' : '') + s.replace('.', ',');
+}
+function si(x, unit, sig) {
+  if (!isFinite(x)) return '∞ ' + unit;
+  if (x === 0) return '0 ' + unit;
+  const a = Math.abs(x);
+  for (const f of SIP) if (a >= f[0] * 0.9995) return num(x / f[0], sig) + ' ' + f[1] + unit;
+  return num(x / 1e-12, sig) + ' p' + unit;
+}
+
+/* ---------- μιγαδικοί ---------- */
+const cadd = (a, b) => ({ re: a.re + b.re, im: a.im + b.im });
+const cmul = (a, b) => ({ re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re });
+const cdiv = (a, b) => { const d = b.re * b.re + b.im * b.im; return { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d }; };
+const cabs = a => Math.hypot(a.re, a.im);
+const carg = a => Math.atan2(a.im, a.re);
+
+/* ---------- μοντέλο ---------- */
+let UID = 0;
+const DEFV = { R: 100, C: 100e-6, L: 0.1 };
+const VALS = {
+  R: [1, 2, 5, 10, 22, 47, 100, 220, 470, 1000, 2200, 4700, 10000],
+  C: [1e-6, 4.7e-6, 10e-6, 22e-6, 47e-6, 100e-6, 220e-6, 470e-6, 1e-3, 2.2e-3, 4.7e-3],
+  L: [1e-3, 10e-3, 22e-3, 47e-3, 0.1, 0.22, 0.47, 1, 2, 5]
+};
+const UNIT = { R: 'Ω', C: 'F', L: 'H' };
+const TYPE_NAME = { R: 'Αντίσταση', C: 'Πυκνωτής', L: 'Πηνίο', S: 'Διακόπτης' };
+const PRE = { R: 'R', C: 'C', L: 'L', S: 'Δ' };
+const mk = type => ({ uid: ++UID, type: type, value: DEFV[type] || 0, closed: false, name: '' });
+const src = { type: 'dc', vdc: 9, vac: 12, f: 50, r: 0.01 };
+let blocks = [];
+function initDefault() {
+  blocks = [
+    { uid: ++UID, kind: 'e', e: mk('S') },
+    { uid: ++UID, kind: 'e', e: mk('R') },
+    { uid: ++UID, kind: 'e', e: mk('C') }
+  ];
+}
+function assignNames() {
+  const cnt = { R: 0, C: 0, L: 0, S: 0 }; let pc = 0;
+  for (const b of blocks) {
+    if (b.kind === 'e') b.e.name = PRE[b.e.type] + (++cnt[b.e.type]);
+    else { b.name = 'Π' + (++pc); for (const br of b.br) for (const e of br) e.name = PRE[e.type] + (++cnt[e.type]); }
+  }
+}
+function allEls() {
+  const out = [];
+  for (const b of blocks) { if (b.kind === 'e') out.push(b.e); else for (const br of b.br) for (const e of br) out.push(e); }
+  return out;
+}
+function findEl(uid) {
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    if (b.kind === 'e' && b.e.uid === uid) return { where: 'main', i: i, e: b.e };
+    if (b.kind === 'p') for (let j = 0; j < b.br.length; j++) {
+      const k = b.br[j].findIndex(e => e.uid === uid);
+      if (k >= 0) return { where: 'br', i: i, j: j, k: k, e: b.br[j][k] };
+    }
+  }
+  return null;
+}
+const findBlock = uid => blocks.findIndex(b => b.kind === 'p' && b.uid === uid);
+const cloneBlocks = () => JSON.parse(JSON.stringify(blocks));
+
+/* ---------- διάταξη ---------- */
+const X0 = 118, Y0 = 70, ROW = 74, YB = 288, PAD = 24, SH = 25;
+function measure() {
+  let units = 0, par = 0;
+  for (const b of blocks) {
+    if (b.kind === 'e') units += 1;
+    else { units += Math.max(1, ...b.br.map(r => r.length)); par++; }
+  }
+  const avail = CW - X0 - 58 - par * 2 * PAD;
+  return { U: Math.min(150, avail / Math.max(units, 1)), units: units, par: par };
+}
+const fits = () => measure().U >= 62;
+
+/* ---------- δίκτυο και λύτης ---------- */
+const RON = 1e-3, GOFF = 1e-9, BIG = 1e9;
+let net = null, recOf = {};
+function buildNet() {
+  assignNames();
+  let nn = 0; const nw = () => ++nn;
+  const ps = nw(), p = nw();
+  const els = [], binfo = [];
+  let cur = p; const n = blocks.length;
+  recOf = {};
+  blocks.forEach((blk, i) => {
+    const nxt = (i === n - 1) ? 0 : nw();
+    if (blk.kind === 'e') {
+      const rec = { e: blk.e, a: cur, b: nxt, x1: 0, x2: 0, v: 0, i: 0, G: 0, J: 0 };
+      els.push(rec); recOf[blk.e.uid] = rec;
+    } else {
+      const info = { blk: blk, a: cur, bn: nxt, brs: [], v: 0, i: 0 };
+      blk.br.forEach(br => {
+        let a = cur; const list = [];
+        br.forEach((e, k) => {
+          const bb = (k === br.length - 1) ? nxt : nw();
+          const rec = { e: e, a: a, b: bb, x1: 0, x2: 0, v: 0, i: 0, G: 0, J: 0 };
+          els.push(rec); list.push(rec); recOf[e.uid] = rec; a = bb;
+        });
+        info.brs.push(list);
+      });
+      binfo.push(info);
+    }
+    cur = nxt;
+  });
+  net = { nn: nn, ps: ps, p: p, els: els, binfo: binfo, n: n };
+}
+
+let t = 0, restart = 2, hPrev = 0, acc = 0;
+const simS = { V: 0, I: 0, emf: 0 };
+function emf(tt) { return src.type === 'dc' ? src.vdc : src.vac * Math.sin(2 * Math.PI * src.f * tt); }
+
+function solve(A, z, N) {
+  for (let c = 0; c < N; c++) {
+    let piv = c, mx = Math.abs(A[c * N + c]);
+    for (let r = c + 1; r < N; r++) { const v = Math.abs(A[r * N + c]); if (v > mx) { mx = v; piv = r; } }
+    if (piv !== c) {
+      for (let k = 0; k < N; k++) { const tmp = A[c * N + k]; A[c * N + k] = A[piv * N + k]; A[piv * N + k] = tmp; }
+      const tz = z[c]; z[c] = z[piv]; z[piv] = tz;
+    }
+    const d = A[c * N + c] || 1e-30;
+    for (let r = c + 1; r < N; r++) {
+      const f = A[r * N + c] / d;
+      if (f !== 0) { for (let k = c; k < N; k++) A[r * N + k] -= f * A[c * N + k]; z[r] -= f * z[c]; }
+    }
+  }
+  const x = new Float64Array(N);
+  for (let r = N - 1; r >= 0; r--) {
+    let s = z[r];
+    for (let k = r + 1; k < N; k++) s -= A[r * N + k] * x[k];
+    x[r] = s / (A[r * N + r] || 1e-30);
+  }
+  return x;
+}
+
+function stepOnce(h) {
+  if (Math.abs(h - hPrev) > 1e-9 * h) restart = Math.max(restart, 2);
+  hPrev = h;
+  const nn = net.nn, N = nn + 1;
+  const A = new Float64Array(N * N), z = new Float64Array(N);
+  const be = restart > 0;
+  const stamp = (a, b, G, J) => {
+    const ia = a - 1, ib = b - 1;
+    if (a > 0) { A[ia * N + ia] += G; z[ia] -= J; }
+    if (b > 0) { A[ib * N + ib] += G; z[ib] += J; }
+    if (a > 0 && b > 0) { A[ia * N + ib] -= G; A[ib * N + ia] -= G; }
+  };
+  for (const rec of net.els) {
+    const e = rec.e; let G = 0, J = 0;
+    if (e.type === 'R') { G = 1 / e.value; }
+    else if (e.type === 'S') { G = e.closed ? 1 / RON : GOFF; }
+    else if (e.type === 'C') {
+      if (be) { G = e.value / h; J = -G * rec.x1; }
+      else { G = 1.5 * e.value / h; J = -(e.value / (2 * h)) * (4 * rec.x1 - rec.x2); }
+    } else {
+      if (be) { G = h / e.value; J = rec.x1; }
+      else { G = 2 * h / (3 * e.value); J = (4 * rec.x1 - rec.x2) / 3; }
+    }
+    rec.G = G; rec.J = J;
+    stamp(rec.a, rec.b, G, J);
+  }
+  stamp(net.ps, net.p, 1 / Math.max(src.r, 0.01), 0);
+  for (let k = 0; k < nn; k++) A[k * N + k] += 1e-12;
+  A[(net.ps - 1) * N + nn] += -1;
+  A[nn * N + (net.ps - 1)] = 1;
+  const tn = t + h;
+  z[nn] = emf(tn);
+  const x = solve(A, z, N);
+  const vn = k => k > 0 ? x[k - 1] : 0;
+  for (const rec of net.els) {
+    const vv = vn(rec.a) - vn(rec.b);
+    const ii = rec.G * vv + rec.J;
+    rec.v = vv; rec.i = ii;
+    if (rec.e.type === 'C') { rec.x2 = rec.x1; rec.x1 = vv; }
+    else if (rec.e.type === 'L') { rec.x2 = rec.x1; rec.x1 = ii; }
+  }
+  for (const info of net.binfo) {
+    info.v = vn(info.a) - vn(info.bn);
+    let s = 0; for (const list of info.brs) s += list[0].i;
+    info.i = s;
+  }
+  simS.V = vn(net.p); simS.I = x[nn]; simS.emf = emf(tn);
+  t = tn;
+  if (restart > 0) restart--;
+}
+
+/* ---------- ιστορικό δειγμάτων ---------- */
+const NS = 900, M = NS + 4;
+const TBL = [1e-3, 2e-3, 5e-3, 10e-3, 20e-3, 50e-3, 100e-3, 200e-3, 500e-3, 1, 2, 5, 10, 20, 50];
+const PLAY = 8;
+let Tw = 0.05, ts = Tw / NS, t0 = 0, ns = 0, nextS = 0, hist = {}, events = [];
+function allocHist() {
+  hist = {};
+  const mkh = () => ({ V: new Float32Array(M), I: new Float32Array(M) });
+  hist.src = mkh();
+  for (const rec of net.els) hist['e' + rec.e.uid] = mkh();
+  for (const info of net.binfo) hist['p' + info.blk.uid] = mkh();
+}
+function record() {
+  const j = ns % M;
+  hist.src.V[j] = simS.V; hist.src.I[j] = simS.I;
+  for (const rec of net.els) { const hh = hist['e' + rec.e.uid]; hh.V[j] = rec.v; hh.I[j] = rec.i; }
+  for (const info of net.binfo) { const hh = hist['p' + info.blk.uid]; hh.V[j] = info.v; hh.I[j] = info.i; }
+  ns++;
+}
+function resetSim() {
+  buildNet();
+  t = 0; restart = 2; acc = 0; hPrev = 0;
+  simS.V = 0; simS.I = 0; simS.emf = 0;
+  ts = Tw / NS; t0 = 0; ns = 0; events = [];
+  Iref = 1e-9;
+  allocHist(); record(); nextS = ts;
+}
+function rewindHist() {
+  ts = Tw / NS; t0 = t; ns = 0; events = [];
+  record(); nextS = t + ts;
+}
+let Iref = 1e-9;
+
+function chooseH() {
+  let hmax = Tw / 2000;
+  if (src.type === 'ac') hmax = Math.min(hmax, 1 / (src.f * 120));
+  const Ls = [], Cs = [];
+  for (const e of allEls()) { if (e.type === 'L') Ls.push(e.value); if (e.type === 'C') Cs.push(e.value); }
+  for (const L of Ls) for (const C of Cs) hmax = Math.min(hmax, 2 * Math.PI * Math.sqrt(L * C) / 60);
+  return Math.max(hmax, Tw / 30000);
+}
+let running = true;
+function advance(dtReal) {
+  const sp = +$('speed').value;
+  acc += dtReal * Tw / PLAY * sp;
+  const hh = chooseH(); let n = 0;
+  while (acc >= hh && n < 700) {
+    stepOnce(hh); acc -= hh; n++;
+    while (t >= nextS - 1e-15) { record(); nextS += ts; }
+  }
+  if (n >= 700) acc = 0;
+}
+
+/* ---------- σύνθετες αντιστάσεις και θεωρία ---------- */
+function zOf(e, w) {
+  switch (e.type) {
+    case 'R': return { re: e.value, im: 0 };
+    case 'S': return { re: e.closed ? RON : BIG, im: 0 };
+    case 'L': return { re: 1e-6, im: w * e.value };
+    default: return w === 0 ? { re: BIG, im: 0 } : { re: 0, im: -1 / (w * e.value) };
+  }
+}
+let theory = null, theoryDirty = true;
+function computeTheory() {
+  const AC = src.type === 'ac', w = AC ? 2 * Math.PI * src.f : 0, Vm = AC ? src.vac : src.vdc;
+  const reff = Math.max(src.r, 0.01), one = { re: 1, im: 0 }, zero = { re: 0, im: 0 };
+  const rows = [];
+  const parts = blocks.map(b => {
+    if (b.kind === 'e') return { b: b, Z: zOf(b.e, w) };
+    const brZ = b.br.map(br => br.reduce((s, e) => cadd(s, zOf(e, w)), zero));
+    let Y = zero; brZ.forEach(z => { Y = cadd(Y, cdiv(one, z)); });
+    return { b: b, brZ: brZ, Z: cdiv(one, Y) };
+  });
+  const Zext = parts.length ? parts.reduce((s, p) => cadd(s, p.Z), zero) : { re: BIG, im: 0 };
+  const Ztot = cadd(Zext, { re: reff, im: 0 });
+  const I = cdiv({ re: Vm, im: 0 }, Ztot);
+  parts.forEach(p => {
+    if (p.b.kind === 'e') rows.push({ name: p.b.e.name, Z: p.Z, V: cmul(I, p.Z), I: I });
+    else {
+      const Vb = cmul(I, p.Z);
+      rows.push({ name: p.b.name + ' (παράλληλο)', Z: p.Z, V: Vb, I: I });
+      p.b.br.forEach((br, j) => br.forEach(e => {
+        const Ij = cdiv(Vb, p.brZ[j]), Ze = zOf(e, w);
+        rows.push({ name: e.name, Z: Ze, V: cmul(Ij, Ze), I: Ij, sub: true });
+      }));
+    }
+  });
+  let nL = 0, nC = 0, Lv = 0, Cv = 0;
+  allEls().forEach(e => { if (e.type === 'L') { nL++; Lv = e.value; } if (e.type === 'C') { nC++; Cv = e.value; } });
+  const f0 = (nL === 1 && nC === 1) ? 1 / (2 * Math.PI * Math.sqrt(Lv * Cv)) : null;
+  const k = AC ? 0.5 : 1;
+  theory = { AC: AC, w: w, Vm: Vm, Zext: Zext, Ztot: Ztot, I: I, rows: rows, phi: carg(Zext), P: k * cabs(I) * cabs(I) * Zext.re, f0: f0, empty: !parts.length };
+  theoryDirty = false;
+  renderTheory();
+  renderStatus();
+}
+const cleanI = x => Math.abs(x) < 1e-7 ? 0 : x;
+function renderTheory() {
+  const T = theory, AC = T.AC, rt = AC ? Math.SQRT2 : 1;
+  let html = '<table><thead><tr><th>Στοιχείο</th>' + (AC ? '<th>|Z|</th><th>φ (τάση − ρεύμα)</th><th>V ενεργός</th><th>I ενεργός</th>' : '<th>V (μόνιμη)</th><th>I (μόνιμο)</th>') + '</tr></thead><tbody>';
+  for (const r of T.rows) {
+    const zs = cabs(r.Z) >= 1e7 ? '∞' : si(cabs(r.Z), 'Ω');
+    html += '<tr' + (r.sub ? ' class="sub"' : '') + '><td>' + r.name + '</td>';
+    if (AC) html += '<td>' + zs + '</td><td>' + (cabs(r.Z) >= 1e7 ? '—' : num(carg(r.Z) * 180 / Math.PI, 3) + '°') + '</td><td>' + si(cabs(r.V) / rt, 'V') + '</td><td>' + si(cleanI(cabs(r.I) / rt), 'A') + '</td>';
+    else html += '<td>' + si(r.V.re, 'V') + '</td><td>' + si(cleanI(r.I.re), 'A') + '</td>';
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  if (AC) html += '<div class="note" style="margin-top:8px">φ = γωνία μεταξύ τάσης και ρεύματος: R → 0°, πηνίο → +90° (το ρεύμα καθυστερεί), πυκνωτής → −90° (το ρεύμα προηγείται). Η ισχύς υπολογίζεται από P = I²<sub>eff</sub>·Re(Z).</div>';
+  $('theory').innerHTML = html;
+
+  const cards = [];
+  const open = cabs(T.Zext) > 1e7;
+  if (AC) {
+    cards.push(['|Z| κυκλώματος', open ? '∞' : si(cabs(T.Zext), 'Ω')]);
+    cards.push(['φ κυκλώματος', open ? '—' : num(T.phi * 180 / Math.PI, 3) + '°']);
+    cards.push(['I ενεργός πηγής', si(cleanI(cabs(T.I) / Math.SQRT2), 'A')]);
+    cards.push(['Ισχύς P', si(open ? 0 : T.P, 'W')]);
+    cards.push(['V ενεργός πηγής', si(T.Vm / Math.SQRT2, 'V')]);
+    if (T.f0 !== null) cards.push(['Συχνότητα συντονισμού f₀', si(T.f0, 'Hz')]);
+  } else {
+    cards.push(['R ισοδύναμη (μόνιμη)', open ? '∞' : si(T.Zext.re, 'Ω')]);
+    cards.push(['I μόνιμο πηγής', si(cleanI(T.I.re), 'A')]);
+    cards.push(['Ισχύς P (μόνιμη)', si(open ? 0 : T.P, 'W')]);
+  }
+  cardsStatic = cards.map(c => '<div class="card"><b>' + c[0] + '</b><span>' + c[1] + '</span></div>').join('');
+  renderCards();
+}
+let cardsStatic = '';
+function renderCards() {
+  $('cards').innerHTML =
+    '<div class="card"><b>Χρόνος t</b><span id="lvT">0</span></div>' +
+    '<div class="card"><b>ΗΕΔ πηγής e(t)</b><span id="lvE">0</span></div>' +
+    '<div class="card"><b>Ένταση πηγής i(t)</b><span id="lvI">0</span></div>' + cardsStatic;
+}
+function renderStatus() {
+  const T = theory; let s = '';
+  if (T.empty) s = 'Το κύκλωμα είναι άδειο. Πρόσθεσε στοιχεία από τα κουμπιά «Προσθήκη».';
+  else if (cabs(T.Zext) > 1e7) {
+    if (allEls().some(e => e.type === 'S' && !e.closed)) s = 'Το κύκλωμα είναι ανοικτό: υπάρχει ανοικτός διακόπτης στον δρόμο του ρεύματος. Κλείσε τον (κλικ πάνω του) για να περάσει ρεύμα.';
+    else s = 'Σε συνεχή τάση ο πυκνωτής φορτίζεται και μετά δεν αφήνει μόνιμο ρεύμα να περάσει· ρεύμα υπάρχει μόνο όσο φορτίζεται.';
+  } else if (T.AC) {
+    const d = T.phi * 180 / Math.PI;
+    if (d > 1) s = 'Επαγωγική συμπεριφορά (φ = ' + num(d, 3) + '°): το ρεύμα καθυστερεί της τάσης της πηγής.';
+    else if (d < -1) s = 'Χωρητική συμπεριφορά (φ = ' + num(d, 3) + '°): το ρεύμα προηγείται της τάσης της πηγής.';
+    else s = 'Ωμική συμπεριφορά (φ ≈ 0°): ρεύμα και τάση της πηγής βρίσκονται σε φάση.';
+    if (T.f0 !== null) s += ' Συντονισμός για f = f₀ = ' + si(T.f0, 'Hz') + '.';
+  } else {
+    s = 'Σε συνεχή τάση, στη μόνιμη κατάσταση ο πυκνωτής συμπεριφέρεται σαν ανοικτό κύκλωμα και το πηνίο σαν σύρμα. Τα μεταβατικά φαινόμενα φαίνονται στα γραφήματα.';
+    if (!allEls().some(e => e.type === 'R')) s += ' Προσοχή: δεν υπάρχει αντίσταση, οπότε το ρεύμα περιορίζεται μόνο από την εσωτερική αντίσταση r της πηγής.';
+  }
+  $('status').textContent = s;
+}
+
+/* ---------- σχεδίαση κυκλώματος ---------- */
+let hits = [], sel = null;
+const dotPhase = {};
+function rrect(g, x, y, w, hh, r) {
+  g.beginPath(); g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + hh, r); g.arcTo(x + w, y + hh, x, y + hh, r);
+  g.arcTo(x, y + hh, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+function ctext(g, s, x, y, col, size, align, weight) {
+  g.font = (weight || 600) + ' ' + (size || 13) + 'px system-ui, Arial, sans-serif';
+  g.textAlign = align || 'center'; g.textBaseline = 'middle';
+  g.lineWidth = 4; g.strokeStyle = 'rgba(255,255,255,.92)'; g.lineJoin = 'round';
+  g.strokeText(s, x, y); g.fillStyle = col; g.fillText(s, x, y);
+}
+function drawSymbol(e, xc, yc, selected) {
+  const g = cctx;
+  if (selected) {
+    g.save(); g.fillStyle = '#e6effa'; g.strokeStyle = '#2b6cb0'; g.lineWidth = 1.5; g.setLineDash([5, 4]);
+    rrect(g, xc - 33, yc - 38, 66, 72, 8); g.fill(); g.stroke(); g.restore();
+  }
+  g.save(); g.translate(xc, yc);
+  g.strokeStyle = '#1d2433'; g.fillStyle = '#1d2433'; g.lineWidth = 2.4; g.lineCap = 'round'; g.lineJoin = 'round';
+  if (e.type === 'R') {
+    g.beginPath(); g.moveTo(-SH, 0); g.lineTo(-16, 0);
+    for (let k = 1; k < 6; k++) g.lineTo(-16 + k * 32 / 6, k % 2 ? -8 : 8);
+    g.lineTo(16, 0); g.lineTo(SH, 0); g.stroke();
+  } else if (e.type === 'C') {
+    g.beginPath(); g.moveTo(-SH, 0); g.lineTo(-5, 0); g.moveTo(5, 0); g.lineTo(SH, 0); g.stroke();
+    g.lineWidth = 3.4; g.beginPath(); g.moveTo(-5, -13); g.lineTo(-5, 13); g.moveTo(5, -13); g.lineTo(5, 13); g.stroke();
+  } else if (e.type === 'L') {
+    g.beginPath(); g.moveTo(-SH, 0); g.lineTo(-20, 0);
+    for (let k = 0; k < 4; k++) g.arc(-15 + 10 * k, 0, 5, Math.PI, 0, false);
+    g.lineTo(SH, 0); g.stroke();
+  } else {
+    g.beginPath(); g.moveTo(-SH, 0); g.lineTo(-18, 0); g.moveTo(18, 0); g.lineTo(SH, 0); g.stroke();
+    g.beginPath(); g.arc(-18, 0, 3.2, 0, 6.3); g.fill();
+    g.beginPath(); g.arc(18, 0, 3.2, 0, 6.3); g.fill();
+    g.strokeStyle = e.closed ? '#2a9d57' : '#c0392b'; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(-18, 0); if (e.closed) g.lineTo(18, 0); else g.lineTo(12, -16); g.stroke();
+  }
+  g.restore();
+  ctext(g, e.name, xc, yc - 25, selected ? '#1f4f8f' : '#1d2433', 13, 'center', 700);
+  const vt = e.type === 'S' ? (e.closed ? 'κλειστός' : 'ανοικτός') : si(e.value, UNIT[e.type]);
+  ctext(g, vt, xc, yc + 27, e.type === 'S' ? (e.closed ? '#1f7a43' : '#a02d22') : '#46536b', 12, 'center', 600);
+}
+function drawSource(xc, yc) {
+  const g = cctx;
+  g.save(); g.translate(xc, yc);
+  g.strokeStyle = '#1d2433'; g.fillStyle = '#1d2433'; g.lineWidth = 2.4; g.lineCap = 'round';
+  if (src.type === 'dc') {
+    g.beginPath(); g.moveTo(0, -24); g.lineTo(0, -12); g.moveTo(0, 12); g.lineTo(0, 24); g.stroke();
+    [[-12, 15], [-4, 8], [4, 15], [12, 8]].forEach((p, i) => {
+      g.lineWidth = i % 2 ? 4 : 2.4; g.beginPath(); g.moveTo(-p[1], p[0]); g.lineTo(p[1], p[0]); g.stroke();
+    });
+  } else {
+    g.lineWidth = 2.4; g.fillStyle = '#fff';
+    g.beginPath(); g.arc(0, 0, 19, 0, 6.3); g.fill(); g.stroke();
+    g.beginPath(); g.moveTo(0, -24); g.lineTo(0, -19); g.moveTo(0, 19); g.lineTo(0, 24); g.stroke();
+    g.beginPath(); for (let k = -11; k <= 11; k++) { const y = Math.sin(k / 11 * Math.PI) * 7; if (k === -11) g.moveTo(k, y); else g.lineTo(k, y); } g.stroke();
+  }
+  g.restore();
+  ctext(g, '+', xc + 14, yc - 20, '#c0392b', 15, 'center', 800);
+  ctext(g, '−', xc + 14, yc + 20, '#1f6feb', 15, 'center', 800);
+  const lab = src.type === 'dc' ? ['Μπαταρία', num(src.vdc) + ' V'] : ['Πηγή ~', 'Vmax ' + num(src.vac) + ' V', num(src.f) + ' Hz'];
+  lab.forEach((s, i) => ctext(g, s, xc - 26, yc - 10 * (lab.length - 1) + i * 20, '#1d2433', 12, 'right', 700));
+}
+function renderCircuit(dt) {
+  const g = cctx; g.clearRect(0, 0, CW, CH);
+  hits = [];
+  const wires = [], draws = [];
+  const U = measure().U, YM = (Y0 + YB) / 2;
+  const Is = simS.I;
+  const W = (x0, y0, x1, y1, key, i) => wires.push({ x0: x0, y0: y0, x1: x1, y1: y1, key: key, i: i });
+  function placeElem(e, xc, yc, xs, xe) {
+    const rec = recOf[e.uid], i = rec ? rec.i : 0, key = 'e' + e.uid;
+    W(xs, yc, xc - SH, yc, key, i); W(xc + SH, yc, xe, yc, key, i);
+    const s = !!(sel && sel.kind === 'e' && sel.uid === e.uid);
+    draws.push(() => drawSymbol(e, xc, yc, s));
+    const hw = Math.min(68, U - 2);
+    hits.push({ x: xc - hw / 2, y: yc - 36, w: hw, h: 70, kind: 'e', uid: e.uid });
+  }
+  // αριστερή πλευρά και πηγή
+  W(X0, YB, X0, YM + 24, 'src', Is);
+  W(X0, YM - 24, X0, Y0, 'src', Is);
+  draws.push(() => drawSource(X0, YM));
+
+  if (!blocks.length) {
+    W(X0, Y0, X0 + 90, Y0, 'none', 0);
+    W(X0, YB, X0 + 90, YB, 'none', 0);
+    draws.push(() => ctext(g, 'Άδειο κύκλωμα: πρόσθεσε στοιχεία', X0 + 300, YM, '#7a8499', 15, 'center', 600));
+  } else {
+    let x = X0;
+    for (const b of blocks) {
+      if (b.kind === 'e') { placeElem(b.e, x + U / 2, Y0, x, x + U); x += U; continue; }
+      const m = Math.max(1, ...b.br.map(r => r.length)), Wd = 2 * PAD + m * U;
+      const xl = x + PAD, xr = x + Wd - PAD, nb = b.br.length;
+      const info = net.binfo.find(q => q.blk === b);
+      W(x, Y0, xl, Y0, 'src', Is); W(xr, Y0, x + Wd, Y0, 'src', Is);
+      const Ir = info.brs.map(l => l[0].i);
+      for (let j = 0; j < nb - 1; j++) {
+        let below = 0; for (let k = j + 1; k < nb; k++) below += Ir[k];
+        W(xl, Y0 + j * ROW, xl, Y0 + (j + 1) * ROW, 'bl' + b.uid + '_' + j, below);
+        W(xr, Y0 + (j + 1) * ROW, xr, Y0 + j * ROW, 'br' + b.uid + '_' + j, below);
+      }
+      b.br.forEach((br, j) => {
+        const sw = (xr - xl) / br.length;
+        br.forEach((e, k) => placeElem(e, xl + (k + 0.5) * sw, Y0 + j * ROW, xl + k * sw, xl + (k + 1) * sw));
+      });
+      const tagY = Y0 + (nb - 1) * ROW + 44, tagX = (xl + xr) / 2;
+      const s = !!(sel && sel.kind === 'p' && sel.uid === b.uid);
+      draws.push(() => {
+        if (s) {
+          g.save(); g.strokeStyle = '#2b6cb0'; g.lineWidth = 1.5; g.setLineDash([6, 4]);
+          rrect(g, xl - 10, Y0 - 40, xr - xl + 20, (nb - 1) * ROW + 84, 10); g.stroke(); g.restore();
+        }
+        g.save(); g.fillStyle = s ? '#2b6cb0' : '#e6effa'; g.strokeStyle = '#2b6cb0'; g.lineWidth = 1.2;
+        rrect(g, tagX - 20, tagY - 9, 40, 18, 9); g.fill(); g.stroke(); g.restore();
+        g.font = '700 12px system-ui, Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = s ? '#fff' : '#1f4f8f'; g.fillText(b.name, tagX, tagY + 0.5);
+        g.save(); g.fillStyle = '#1d2433';
+        [[xl, Y0], [xl, Y0 + (nb - 1) * ROW], [xr, Y0], [xr, Y0 + (nb - 1) * ROW]].forEach(p => { g.beginPath(); g.arc(p[0], p[1], 3, 0, 6.3); g.fill(); });
+        g.restore();
+      });
+      hits.push({ x: tagX - 22, y: tagY - 11, w: 44, h: 22, kind: 'p', uid: b.uid });
+      x += Wd;
+    }
+    W(x, Y0, x, YB, 'src', Is);
+    W(x, YB, X0, YB, 'src', Is);
+  }
+  // καλώδια
+  g.save(); g.strokeStyle = '#1d2433'; g.lineWidth = 2.4; g.lineCap = 'round';
+  for (const w of wires) { g.beginPath(); g.moveTo(w.x0, w.y0); g.lineTo(w.x1, w.y1); g.stroke(); }
+  g.restore();
+  // τελείες ρεύματος
+  let mx = Math.abs(Is);
+  for (const rec of net.els) mx = Math.max(mx, Math.abs(rec.i));
+  Iref = Math.max(mx, Iref * 0.997, 1e-9);
+  const upd = {};
+  g.save(); g.fillStyle = '#e8590c';
+  for (const w of wires) {
+    const L = Math.hypot(w.x1 - w.x0, w.y1 - w.y0);
+    if (L < 1 || Math.abs(w.i) < Math.max(1e-6, 1e-3 * Iref)) continue;
+    if (!upd[w.key]) {
+      upd[w.key] = 1;
+      if (running) dotPhase[w.key] = (dotPhase[w.key] || 0) + Math.sign(w.i) * Math.pow(Math.min(1, Math.abs(w.i) / Iref), 0.6) * 75 * dt;
+    }
+    const SP = 18, ph = ((dotPhase[w.key] || 0) % SP + SP) % SP;
+    const dx = (w.x1 - w.x0) / L, dy = (w.y1 - w.y0) / L;
+    for (let s = ph; s < L; s += SP) { g.beginPath(); g.arc(w.x0 + dx * s, w.y0 + dy * s, 2.7, 0, 6.3); g.fill(); }
+  }
+  g.restore();
+  draws.forEach(f => f());
+}
+
+/* ---------- γραφήματα ---------- */
+const CHCOL = ['#1f6feb', '#d62839', '#2a9d57'];
+const chans = [{ on: true, key: null, q: 'V' }, { on: true, key: 'src', q: 'I' }, { on: false, key: 'src', q: 'V' }];
+let hoverX = null;
+const tmpv = new Float32Array(NS);
+function niceStep(x) {
+  const p = Math.pow(10, Math.floor(Math.log10(x))), m = x / p;
+  return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p;
+}
+function chanLabel(c) {
+  const t = targets().find(q => q.key === c.key);
+  return (c.q === 'V' ? 'Τάση ' : 'Ένταση ') + (t ? t.short : '');
+}
+function chanData(c) { const h = hist[c.key]; return h ? h[c.q] : null; }
+function robust(arr) {
+  let n = 0;
+  for (let i = 0; i < NS; i++) { const j = ns - NS + i; if (j < 0) continue; const v = arr[j % M]; if (isFinite(v)) tmpv[n++] = v; }
+  if (n < 2) return { lo: 0, hi: 0 };
+  const s = tmpv.slice(0, n).sort();
+  return { lo: s[Math.floor(n * 0.01)], hi: s[Math.min(n - 1, Math.floor(n * 0.99))] };
+}
+function smoothRange(c, lo, hi) {
+  if (c._k !== c.key + c.q || c.lo === undefined) { c._k = c.key + c.q; c.lo = lo; c.hi = hi; }
+  c.hi = hi > c.hi ? hi : c.hi + (hi - c.hi) * 0.05;
+  c.lo = lo < c.lo ? lo : c.lo + (lo - c.lo) * 0.05;
+}
+function drawScope() {
+  const act = chans.filter(c => c.on && hist[c.key]);
+  const overlay = $('mode').value === 'ov' && act.length > 1;
+  const np = overlay ? 1 : Math.max(1, act.length);
+  const PH = act.length === 0 ? 110 : overlay ? 300 : (np === 1 ? 250 : np === 2 ? 205 : 175);
+  const H = np * PH + 14;
+  if (H !== scH) { scH = H; setSize(sc, sctx, CW, H); }
+  const g = sctx; g.clearRect(0, 0, CW, H);
+  if (!act.length) { ctext(g, 'Δεν έχει επιλεγεί γράφημα. Ενεργοποίησε ένα κανάλι από τα «Γραφήματα».', CW / 2, 50, '#7a8499', 15); return; }
+  const L = 82, R = CW - 14, pw = R - L;
+  const tL = t0 + (ns - NS) * ts, tR = t0 + (ns - 1) * ts;
+  const unit = q => q === 'V' ? 'V' : 'A';
+  const hx = hoverX === null ? null : clamp(hoverX, L, R);
+  const hi_ = hx === null ? -1 : Math.round((hx - L) / pw * (NS - 1));
+  for (let pi = 0; pi < np; pi++) {
+    const top = pi * PH + 6, pt = top + 22, pb = top + PH - 22, ph = pb - pt;
+    const list = overlay ? act : [act[pi]];
+    // εύρος
+    list.forEach(c => { const d = chanData(c), r = robust(d); let lo = Math.min(r.lo, 0), hi = Math.max(r.hi, 0); const span = hi - lo;
+      if (span < 1e-12) { lo = -(c.q === 'V' ? 1 : 0.001); hi = -lo; } else { lo -= 0.07 * span; hi += 0.07 * span; }
+      smoothRange(c, lo, hi); });
+    let ylo, yhi;
+    if (overlay) { ylo = -1.15; yhi = 1.15; } else { ylo = list[0].lo; yhi = list[0].hi; }
+    const Y = v => pb - (v - ylo) / (yhi - ylo) * ph;
+    // πλαίσιο
+    g.fillStyle = '#fbfcfe'; g.fillRect(L, pt, pw, ph);
+    g.strokeStyle = '#d5dbe5'; g.lineWidth = 1; g.strokeRect(L + 0.5, pt + 0.5, pw, ph);
+    // οριζόντιες γραμμές
+    const step = overlay ? 0.5 : niceStep((yhi - ylo) / 4);
+    const first = Math.ceil(ylo / step - 1e-9) * step;
+    g.font = '600 11px system-ui, Arial'; g.textAlign = 'right'; g.textBaseline = 'middle';
+    for (let v = first; v <= yhi + 1e-12; v += step) {
+      const y = Y(v), zero = Math.abs(v) < step * 1e-6;
+      g.strokeStyle = zero ? '#8b97ab' : '#e6eaf1'; g.lineWidth = zero ? 1.4 : 1;
+      g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.stroke();
+      g.fillStyle = '#5b667a';
+      g.fillText(overlay ? num(v, 2) : (zero ? '0' : si(v, unit(list[0].q), 2)), L - 6, y);
+    }
+    // κατακόρυφες γραμμές και ώρα
+    g.textAlign = 'center';
+    for (let k = 0; k <= 5; k++) {
+      const x = L + pw * k / 5, tt = tL + (tR - tL) * k / 5;
+      g.strokeStyle = '#eef1f6'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, pt); g.lineTo(x, pb); g.stroke();
+      if (tt >= -1e-12) { g.fillStyle = '#5b667a'; g.fillText(si(Math.max(tt, 0), 's', 3), clamp(x, L + 22, R - 22), pb + 11); }
+    }
+    // γεγονότα
+    for (const ev of events) {
+      if (ev.t < tL || ev.t > tR) continue;
+      const x = L + (ev.t - tL) / (tR - tL) * pw;
+      g.save(); g.strokeStyle = '#e8890c'; g.setLineDash([4, 3]); g.lineWidth = 1.2; g.beginPath(); g.moveTo(x, pt); g.lineTo(x, pb); g.stroke(); g.restore();
+      g.font = '600 10px system-ui, Arial'; g.textAlign = 'left'; g.fillStyle = '#b25f00'; g.fillText(ev.label, x + 3, pt + 8);
+    }
+    // καμπύλες
+    list.forEach(c => {
+      const d = chanData(c); const col = CHCOL[chans.indexOf(c)];
+      const sc_ = overlay ? Math.max(Math.abs(c.lo), Math.abs(c.hi), 1e-12) / 1.07 : 1;
+      g.save(); g.beginPath(); g.rect(L, pt, pw, ph); g.clip();
+      g.strokeStyle = col; g.lineWidth = 2.2; g.lineJoin = 'round'; g.beginPath();
+      let started = false;
+      for (let i = 0; i < NS; i++) {
+        const j = ns - NS + i; if (j < 0) { started = false; continue; }
+        const v = d[j % M]; const x = L + i / (NS - 1) * pw, y = Y(overlay ? v / sc_ : v);
+        if (!started) { g.moveTo(x, y); started = true; } else g.lineTo(x, y);
+      }
+      g.stroke(); g.restore();
+    });
+    // τίτλος / υπόμνημα
+    g.textBaseline = 'middle';
+    if (overlay) {
+      let lx = L;
+      list.forEach(c => {
+        const col = CHCOL[chans.indexOf(c)], sc_ = Math.max(Math.abs(c.lo), Math.abs(c.hi), 1e-12) / 1.07;
+        const s = chanLabel(c) + '  (1 = ' + si(sc_, unit(c.q), 3) + ')';
+        g.fillStyle = col; g.fillRect(lx, top + 5, 14, 4);
+        g.font = '700 12px system-ui, Arial'; g.textAlign = 'left'; g.fillText(s, lx + 19, top + 8);
+        lx += 19 + g.measureText(s).width + 22;
+      });
+    } else {
+      const c = list[0], col = CHCOL[chans.indexOf(c)];
+      g.fillStyle = col; g.fillRect(L, top + 5, 14, 4);
+      g.font = '700 12px system-ui, Arial'; g.textAlign = 'left'; g.fillText(chanLabel(c) + ' (' + unit(c.q) + ')', L + 19, top + 8);
+    }
+    // δείκτης ποντικιού
+    if (hx !== null && ns - NS + hi_ >= 0) {
+      g.strokeStyle = '#556'; g.lineWidth = 1; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(hx, pt); g.lineTo(hx, pb); g.stroke(); g.setLineDash([]);
+      const j = ns - NS + hi_;
+      const lines = [si(t0 + j * ts, 's', 3)];
+      list.forEach(c => lines.push(overlay ? chanLabel(c) + ': ' + si(chanData(c)[j % M], unit(c.q), 3) : si(chanData(c)[j % M], unit(c.q), 3)));
+      g.font = '700 12px system-ui, Arial'; g.textAlign = 'left';
+      const bw = Math.max(...lines.map(s => g.measureText(s).width)) + 14, bh = lines.length * 16 + 6;
+      let bx = hx + 10; if (bx + bw > R) bx = hx - 10 - bw;
+      g.fillStyle = 'rgba(255,255,255,.94)'; g.strokeStyle = '#9aa6ba'; g.lineWidth = 1;
+      rrect(g, bx, pt + 8, bw, bh, 6); g.fill(); g.stroke();
+      lines.forEach((s, i) => { g.fillStyle = i === 0 ? '#34425a' : (overlay ? CHCOL[chans.indexOf(list[i - 1])] : CHCOL[chans.indexOf(list[0])]); g.fillText(s, bx + 7, pt + 8 + 11 + i * 16); });
+    }
+  }
+}
+
+/* ---------- στοιχεία διεπαφής ---------- */
+function h(tag, attrs) {
+  const el = document.createElement(tag);
+  if (attrs) for (const k in attrs) {
+    if (k === 'class') el.className = attrs[k];
+    else if (k.slice(0, 2) === 'on') el[k] = attrs[k];
+    else el.setAttribute(k, attrs[k]);
+  }
+  for (let i = 2; i < arguments.length; i++) {
+    const c = arguments[i];
+    if (c === null || c === undefined) continue;
+    if (Array.isArray(c)) c.forEach(x => el.append(x.nodeType ? x : document.createTextNode(x)));
+    else el.append(c.nodeType ? c : document.createTextNode(c));
+  }
+  return el;
+}
+function mkSelect(opts, value, onchange) {
+  const s = h('select');
+  opts.forEach(o => { const op = h('option', { value: String(o[0]) }, o[1]); s.append(op); });
+  s.value = String(value);
+  s.onchange = () => onchange(s.value);
+  return s;
+}
+function targets() {
+  const arr = [{ key: 'src', label: 'Πηγή (σύνολο κυκλώματος)', short: 'πηγής' }];
+  for (const b of blocks) {
+    if (b.kind === 'e') arr.push({ key: 'e' + b.e.uid, label: b.e.name + ' (' + TYPE_NAME[b.e.type].toLowerCase() + ')', short: b.e.name });
+    else {
+      arr.push({ key: 'p' + b.uid, label: b.name + ' (σύνολο παράλληλου τμήματος)', short: b.name });
+      for (const br of b.br) for (const e of br) arr.push({ key: 'e' + e.uid, label: e.name + ' (στο ' + b.name + ')', short: e.name });
+    }
+  }
+  return arr;
+}
+function renderChans() {
+  const tg = targets();
+  const box = $('chs'); box.innerHTML = '';
+  chans.forEach((c, i) => {
+    if (!tg.some(q => q.key === c.key)) c.key = 'src';
+    const cb = h('input', { type: 'checkbox' }); cb.checked = c.on; cb.onchange = () => { c.on = cb.checked; };
+    const s1 = mkSelect(tg.map(q => [q.key, q.label]), c.key, v => { c.key = v; });
+    const s2 = mkSelect([['V', 'Τάση (V)'], ['I', 'Ένταση (A)']], c.q, v => { c.q = v; });
+    box.append(h('div', { class: 'ch' }, h('span', { class: 'dot', style: 'background:' + CHCOL[i] }), h('label', null, cb, 'Κανάλι ' + (i + 1)), s1, s2));
+  });
+}
+function addToGraph(key, q) {
+  let c = chans.find(x => !x.on);
+  if (!c) { c = chans[graphRot % 3]; graphRot++; }
+  c.on = true; c.key = key; c.q = q; renderChans();
+}
+let graphRot = 2;
+let msgTimer = 0;
+function msg(s) { $('msg').textContent = s; clearTimeout(msgTimer); msgTimer = setTimeout(() => { $('msg').textContent = ''; }, 3500); }
+
+function toggleSwitch(e) {
+  e.closed = !e.closed;
+  events.push({ t: t, label: e.name + (e.closed ? ' κλείνει' : ' ανοίγει') });
+  changed('switch');
+}
+function exists(s) { return s.kind === 'e' ? !!findEl(s.uid) : findBlock(s.uid) >= 0; }
+function changed(kind) {
+  if (kind === 'topo') { if (sel && !exists(sel)) sel = null; resetSim(); renderChans(); }
+  else restart = Math.max(restart, 2);
+  theoryDirty = true;
+  applyAuto();
+  computeTheory();
+  renderInsp();
+}
+
+/* κατασκευαστής */
+function addItem(type) {
+  const selOld = sel ? { kind: sel.kind, uid: sel.uid } : null;
+  let loc = null;
+  if (sel && sel.kind === 'e') loc = findEl(sel.uid);
+  else if (sel && sel.kind === 'p') { const bi = findBlock(sel.uid); loc = bi >= 0 ? { where: 'main', i: bi } : null; }
+  let undo;
+  if (type === 'P') {
+    const nb = { uid: ++UID, kind: 'p', br: [[mk('R')], [mk('R')]] };
+    const idx = loc ? loc.i + 1 : blocks.length;
+    blocks.splice(idx, 0, nb);
+    undo = () => blocks.splice(idx, 1);
+    sel = { kind: 'p', uid: nb.uid };
+  } else {
+    const e = mk(type);
+    if (loc && loc.where === 'br') {
+      const br = blocks[loc.i].br[loc.j];
+      if (br.length >= 3) { msg('Έως 3 στοιχεία ανά κλάδο.'); return; }
+      const idx = loc.k + 1;
+      br.splice(idx, 0, e);
+      undo = () => br.splice(idx, 1);
+    } else {
+      const idx = loc ? loc.i + 1 : blocks.length;
+      blocks.splice(idx, 0, { uid: ++UID, kind: 'e', e: e });
+      undo = () => blocks.splice(idx, 1);
+    }
+    sel = { kind: 'e', uid: e.uid };
+  }
+  if (!fits()) { undo(); sel = selOld; msg('Δεν χωράει άλλο στοιχείο στο κύκλωμα.'); return; }
+  changed('topo');
+}
+function moveSel(dir) {
+  if (!sel) return;
+  const swap = (arr, a, b) => { if (b < 0 || b >= arr.length) return false; const tmp = arr[a]; arr[a] = arr[b]; arr[b] = tmp; return true; };
+  let ok = false;
+  if (sel.kind === 'p') { const i = findBlock(sel.uid); ok = swap(blocks, i, i + dir); }
+  else { const l = findEl(sel.uid); ok = l.where === 'main' ? swap(blocks, l.i, l.i + dir) : swap(blocks[l.i].br[l.j], l.k, l.k + dir); }
+  if (ok) changed('topo');
+}
+function delSel(whole) {
+  if (!sel) return;
+  if (sel.kind === 'p') blocks.splice(findBlock(sel.uid), 1);
+  else {
+    const l = findEl(sel.uid);
+    if (l.where === 'main') blocks.splice(l.i, 1);
+    else {
+      const b = blocks[l.i];
+      if (whole) b.br.splice(l.j, 1); else b.br[l.j].splice(l.k, 1);
+      b.br = b.br.filter(r => r.length);
+      if (!b.br.length) blocks.splice(l.i, 1);
+    }
+  }
+  sel = null; changed('topo');
+}
+function addBranch(bi) {
+  const b = blocks[bi];
+  if (b.br.length >= 3) { msg('Έως 3 κλάδοι.'); return; }
+  b.br.push([mk('R')]);
+  if (!fits()) { b.br.pop(); msg('Δεν χωράει.'); return; }
+  changed('topo');
+}
+function renderInsp() {
+  const box = $('insp'); box.innerHTML = '';
+  if (!sel) { box.append(h('span', { class: 'hint' }, 'Κάνε κλικ σε ένα στοιχείο του κυκλώματος για να το επεξεργαστείς (στους διακόπτες το κλικ τον ανοίγει ή τον κλείνει). Αν δεν είναι επιλεγμένο τίποτα, τα νέα στοιχεία μπαίνουν στο τέλος. Με επιλεγμένο στοιχείο μπαίνουν μετά από αυτό, στον ίδιο κλάδο.')); return; }
+  if (sel.kind === 'p') {
+    const bi = findBlock(sel.uid), b = blocks[bi];
+    box.append(
+      h('div', { class: 'row' }, h('b', null, 'Επιλεγμένο: ' + b.name + ' (παράλληλο τμήμα, ' + b.br.length + ' κλάδοι)'),
+        h('button', { class: 'b', onclick: () => addBranch(bi) }, '+ κλάδος'),
+        h('button', { class: 'b', onclick: () => moveSel(-1) }, '◀'), h('button', { class: 'b', onclick: () => moveSel(1) }, '▶'),
+        h('button', { class: 'b warn', onclick: () => delSel(false) }, '✕ Διαγραφή')),
+      h('div', { class: 'row' }, h('button', { class: 'b', onclick: () => addToGraph('p' + b.uid, 'V') }, '📈 Τάση στα άκρα'), h('button', { class: 'b', onclick: () => addToGraph('p' + b.uid, 'I') }, '📈 Ολικό ρεύμα'),
+        h('span', null, 'V = ', h('span', { class: 'live', id: 'liveV' }), '  I = ', h('span', { class: 'live', id: 'liveI' }))));
+    return;
+  }
+  const l = findEl(sel.uid), e = l.e;
+  const typeSel = mkSelect([['R', 'Αντίσταση'], ['C', 'Πυκνωτής'], ['L', 'Πηνίο'], ['S', 'Διακόπτης']], e.type, v => {
+    e.type = v; e.value = DEFV[v] || 0; e.closed = false; changed('topo');
+  });
+  const r1 = h('div', { class: 'row' }, h('b', null, 'Επιλεγμένο: ' + e.name), typeSel);
+  if (e.type === 'S') r1.append(h('button', { class: 'b primary', onclick: () => toggleSwitch(e) }, e.closed ? 'Άνοιγμα διακόπτη' : 'Κλείσιμο διακόπτη'));
+  else {
+    const vs = VALS[e.type].slice(); if (vs.indexOf(e.value) < 0) vs.push(e.value);
+    r1.append(h('label', null, 'Τιμή ', mkSelect(vs.map(v => [v, si(v, UNIT[e.type])]), e.value, v => { e.value = +v; changed('value'); })));
+  }
+  const r2 = h('div', { class: 'row' },
+    h('button', { class: 'b', onclick: () => moveSel(-1) }, '◀ αριστερά'), h('button', { class: 'b', onclick: () => moveSel(1) }, 'δεξιά ▶'),
+    h('button', { class: 'b warn', onclick: () => delSel(false) }, '✕ Διαγραφή στοιχείου'));
+  if (l.where === 'br') r2.append(h('button', { class: 'b warn', onclick: () => delSel(true) }, '✕ Διαγραφή κλάδου'));
+  const r3 = h('div', { class: 'row' },
+    h('button', { class: 'b', onclick: () => addToGraph('e' + e.uid, 'V') }, '📈 Τάση'), h('button', { class: 'b', onclick: () => addToGraph('e' + e.uid, 'I') }, '📈 Ρεύμα'),
+    h('span', null, 'V = ', h('span', { class: 'live', id: 'liveV' }), '  I = ', h('span', { class: 'live', id: 'liveI' })));
+  box.append(r1, r2, r3);
+}
+
+/* πηγή */
+function fillSource() {
+  const ty = src.type, vs = $('srcV'); vs.innerHTML = '';
+  const list = ty === 'dc' ? [1.5, 3, 4.5, 6, 9, 12, 24] : [5, 10, 12, 15, 20, 30];
+  list.forEach(v => vs.append(h('option', { value: String(v) }, ty === 'dc' ? num(v) + ' V' : num(v) + ' V (ενεργός ' + num(v / Math.SQRT2) + ' V)')));
+  vs.value = String(ty === 'dc' ? src.vdc : src.vac);
+  $('srcVLab').textContent = ty === 'dc' ? 'Τάση (ΗΕΔ)' : 'Μέγιστη τάση Vmax';
+  $('fWrap').classList.toggle('hide', ty === 'dc');
+}
+$('srcType').onchange = () => { src.type = $('srcType').value; fillSource(); changed('src'); };
+$('srcV').onchange = () => { if (src.type === 'dc') src.vdc = +$('srcV').value; else src.vac = +$('srcV').value; changed('src'); };
+$('srcF').onchange = () => { src.f = +$('srcF').value; changed('src'); };
+$('srcR').onchange = () => { src.r = +$('srcR').value; changed('src'); };
+[1, 2, 5, 10, 20, 50, 100, 200, 500, 1000].forEach(f => $('srcF').append(h('option', { value: String(f) }, num(f) + ' Hz')));
+$('srcF').value = '50';
+[[0.01, '0,01 Ω (σχεδόν ιδανική)'], [0.1, '0,1 Ω'], [0.5, '0,5 Ω'], [1, '1 Ω'], [2, '2 Ω'], [5, '5 Ω'], [10, '10 Ω']].forEach(o => $('srcR').append(h('option', { value: String(o[0]) }, o[1])));
+$('srcR').value = '0.01';
+
+/* χρονική κλίμακα */
+TBL.forEach(v => $('tb').append(h('option', { value: String(v) }, si(v, 's'))));
+function pickTb(x) { for (const v of TBL) if (v >= x * 0.999) return v; return TBL[TBL.length - 1]; }
+function autoTb() {
+  if (src.type === 'ac') return pickTb(4 / src.f);
+  let R = Math.max(src.r, 0.01), C = 0, L = 0;
+  allEls().forEach(e => { if (e.type === 'R') R += e.value; if (e.type === 'C') C += e.value; if (e.type === 'L') L += e.value; });
+  let tau = 0.004;
+  if (C > 0) tau = Math.max(tau, R * C);
+  if (L > 0) tau = Math.max(tau, L / R);
+  if (C > 0 && L > 0) tau = Math.max(tau, 2 * Math.PI * Math.sqrt(L * C) / 2.5);
+  return pickTb(5 * tau);
+}
+function setTb(v) { if (v !== Tw) { Tw = v; $('tb').value = String(v); rewindHist(); } }
+function applyAuto() { if ($('tbAuto').checked) setTb(autoTb()); }
+$('tbAuto').onchange = () => { $('tb').disabled = $('tbAuto').checked; applyAuto(); };
+$('tb').onchange = () => { setTb(+$('tb').value); };
+
+/* κουμπιά */
+$('addR').onclick = () => addItem('R'); $('addC').onclick = () => addItem('C'); $('addL').onclick = () => addItem('L');
+$('addS').onclick = () => addItem('S'); $('addP').onclick = () => addItem('P');
+$('play').onclick = () => { running = !running; $('play').textContent = running ? '⏸ Παύση' : '▶ Συνέχεια'; };
+$('reset').onclick = () => { resetSim(); };
+
+/* ποντίκι */
+function pos(cv, ev, W_, H_) { const r = cv.getBoundingClientRect(); return [(ev.clientX - r.left) * W_ / r.width, (ev.clientY - r.top) * H_ / r.height]; }
+cc.addEventListener('click', ev => {
+  const p = pos(cc, ev, CW, CH);
+  const hit = hits.find(q => p[0] >= q.x && p[0] <= q.x + q.w && p[1] >= q.y && p[1] <= q.y + q.h);
+  if (!hit) sel = null;
+  else if (hit.kind === 'e') { sel = { kind: 'e', uid: hit.uid }; const l = findEl(hit.uid); if (l && l.e.type === 'S') { toggleSwitch(l.e); return; } }
+  else sel = { kind: 'p', uid: hit.uid };
+  renderInsp();
+});
+cc.addEventListener('mousemove', ev => {
+  const p = pos(cc, ev, CW, CH);
+  cc.style.cursor = hits.some(q => p[0] >= q.x && p[0] <= q.x + q.w && p[1] >= q.y && p[1] <= q.y + q.h) ? 'pointer' : 'default';
+});
+sc.addEventListener('pointermove', ev => { hoverX = pos(sc, ev, CW, scH || CH)[0]; });
+sc.addEventListener('pointerleave', () => { hoverX = null; });
+
+/* ζωντανές ενδείξεις */
+let lastLive = 0;
+function updateLive(now) {
+  if (now - lastLive < 120) return; lastLive = now;
+  const set = (id, s) => { const el = $(id); if (el && el.textContent !== s) el.textContent = s; };
+  set('lvT', si(t, 's')); set('lvE', si(simS.emf, 'V')); set('lvI', si(simS.I, 'A'));
+  if (sel) {
+    if (sel.kind === 'e') { const r = recOf[sel.uid]; if (r) { set('liveV', si(r.v, 'V')); set('liveI', si(r.i, 'A')); } }
+    else { const info = net.binfo.find(q => q.blk.uid === sel.uid); if (info) { set('liveV', si(info.v, 'V')); set('liveI', si(info.i, 'A')); } }
+  }
+}
+
+/* κύριος βρόχος */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (running) advance(dt);
+  renderCircuit(dt); drawScope(); updateLive(now);
+  requestAnimationFrame(frame);
+}
+
+/* εκκίνηση */
+initDefault();
+fillSource();
+Tw = 0.05;
+resetSim();
+chans[0].key = 'e' + blocks[2].e.uid; chans[0].q = 'V';
+chans[1].key = 'src'; chans[1].q = 'I';
+renderChans();
+$('tb').value = String(Tw);
+applyAuto();
+computeTheory();
+renderInsp();
+window.__sim = { get t() { return t; }, src: src, get blocks() { return blocks; }, get net() { return net; }, simS: simS, changed: changed, get Tw() { return Tw; }, get theory() { return theory; }, advance: advance, setRunning: v => { running = v; }, chans: chans, hist: () => hist, get ns() { return ns; }, M: M, NS: NS, toggleSwitch: toggleSwitch, resetSim: resetSim };
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
