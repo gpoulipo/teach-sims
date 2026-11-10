@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Κρούση δύο σωμάτων στο δάπεδο</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:system-ui,"Segoe UI",Roboto,Arial,sans-serif;margin:0;background:#f4f6f9;color:#1d2433}
+  .wrap{max-width:1400px;margin:0 auto;padding:16px}
+  h1{font-size:20px;margin:0 0 10px}
+  canvas{width:100%;height:auto;background:#fff;border:1px solid #d5dbe5;border-radius:10px;display:block}
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:12px;align-items:start}
+  .col{min-width:0}
+  .col > * + *{margin-top:10px}
+  @media (max-width:1000px){.grid{grid-template-columns:minmax(0,1fr)}}
+  .panel{background:#fff;border:1px solid #d5dbe5;border-radius:10px;padding:10px 12px}
+  .panel h2{font-size:14px;margin:0 0 8px;color:#34425a}
+  .row{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+  .row + .row{margin-top:8px}
+  label{font-size:14px;display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 8px;max-width:100%}
+  select{font:inherit;font-size:14px;padding:5px 8px;border-radius:6px;border:1px solid #9aa6ba;background:#fff;max-width:100%;min-width:0}
+  button.b{font:inherit;font-size:14px;padding:7px 14px;border-radius:8px;border:1px solid #9aa6ba;background:#f0f3f8;cursor:pointer}
+  button.b:hover{background:#e3e9f3}
+  button.primary{background:#2b6cb0;border-color:#2b6cb0;color:#fff}
+  button.primary:hover{background:#245a93}
+  input[type=range]{min-width:0}
+  .nf{display:grid;grid-template-columns:112px minmax(0,1fr) 84px;gap:6px 8px;align-items:center;font-size:13px}
+  .nf + .nf{margin-top:6px}
+  .nf .nl{color:#34425a}
+  .nf input[type=number]{font:inherit;font-size:13px;width:100%;padding:4px 6px;border:1px solid #9aa6ba;border-radius:6px;background:#fff}
+  .grp{font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;margin:10px 0 6px}
+  .grp:first-child{margin-top:0}
+  .dot{display:inline-block;width:12px;height:12px;border-radius:50%}
+  .hide{display:none!important}
+  #status{font-size:14px;color:#2f3c55;line-height:1.5;background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 12px;min-height:40px}
+  #status .warn{color:#a02d22;font-weight:600}
+  table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+  th,td{border-bottom:1px solid #e3e8f0;padding:5px 8px;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  th{color:#5b667a;font-weight:600}
+  tr.sec td{background:#f1f4f9;font-weight:700;color:#34425a;text-align:left}
+  .tablewrap{overflow-x:auto}
+  .res{margin-top:10px;font-size:14px;line-height:1.6}
+  .res .ok{color:#1f7a43;font-weight:600}
+  .note{font-size:13px;color:#46536b;line-height:1.55;background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 12px}
+  .tgl{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+  .tl{font-variant-numeric:tabular-nums;font-weight:600;color:#1f4f8f;min-width:70px}
+  canvas#gr{cursor:ew-resize;touch-action:pan-y}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Κρούση δύο σωμάτων στο δάπεδο</h1>
+  <div class="grid">
+    <div class="col">
+      <canvas id="cv"></canvas>
+      <div class="panel">
+        <div class="row">
+          <button class="b primary" id="play">▶ Εκκίνηση</button>
+          <button class="b" id="rew" title="Επιστροφή στην αρχή">⏮ Αρχή</button>
+          <label>Ταχύτητα
+            <select id="speed">
+              <option value="0.1">0,1×</option>
+              <option value="0.25">0,25×</option>
+              <option value="0.5" selected>0,5×</option>
+              <option value="1">1×</option>
+              <option value="2">2×</option>
+            </select>
+          </label>
+          <input type="range" id="tpos" min="0" max="1000" value="0" style="flex:1;min-width:140px">
+          <span class="tl" id="tlab">t = 0 s</span>
+        </div>
+        <div class="row">
+          <div class="tgl">
+            <label><input type="checkbox" id="tV" checked> Ταχύτητες υ</label>
+            <label><input type="checkbox" id="tP"> Ορμές p</label>
+            <label><input type="checkbox" id="tC"> Συνιστώσες (κάθετη, εφαπτομενική)</label>
+            <label><input type="checkbox" id="tT" checked> Ίχνος</label>
+            <label><input type="checkbox" id="tG" checked> Ευθεία κέντρων</label>
+          </div>
+        </div>
+      </div>
+      <div id="status"></div>
+    </div>
+    <div class="col">
+      <div class="panel">
+        <h2>Είδος κρούσης</h2>
+        <div class="row">
+          <label>Διαστάσεις <select id="dim"><option value="1">1 διάσταση</option><option value="2">2 διαστάσεις</option></select></label>
+          <label id="typeW" class="hide">Τύπος <select id="type"><option value="central">Κεντρική</option><option value="oblique">Πλάγια</option><option value="eccentric">Έκκεντρη</option></select></label>
+          <label>Κρούση <select id="coll"><option value="elastic">Ελαστική</option><option value="plastic">Πλαστική</option></select></label>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Σώματα</h2>
+        <div id="params"></div>
+      </div>
+      <div class="panel">
+        <h2>Δάπεδο</h2>
+        <div id="fric"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:12px">
+    <h2>Γραφήματα (σύρε πάνω τους για να μετακινηθείς στον χρόνο)</h2>
+    <canvas id="gr"></canvas>
+  </div>
+  <div class="panel" style="margin-top:12px">
+    <h2>Πριν και μετά την κρούση</h2>
+    <div class="tablewrap" id="tbl"></div>
+    <div class="res" id="res"></div>
+  </div>
+  <div class="note" style="margin-top:12px">Τα σώματα θεωρούνται λείοι δίσκοι χωρίς περιστροφή, με ακτίνα ανάλογη της √m. Η κρούση είναι ακαριαία και οι δυνάμεις της κρούσης έχουν τη διεύθυνση της ευθείας των κέντρων. Η τριβή ολίσθησης στο δάπεδο είναι σταθερή, T = μ·m·g με g = 9,81 m/s², και θεωρείται αμελητέα κατά τη διάρκεια της κρούσης. Στην πλαστική κρούση τα σώματα μένουν ενωμένα και κινούνται με κοινή ταχύτητα. Οι αρχικές θέσεις επιλέγονται αυτόματα ώστε τα σώματα να συναντηθούν με τη γεωμετρία που ορίζεις, και οι ταχύτητες που δίνεις είναι οι αρχικές (με τριβή, ακριβώς πριν την κρούση είναι λίγο μικρότερες· δείχνονται στον πίνακα).</div>
+</div>
+
+<script>
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const dpr = window.devicePixelRatio || 1;
+const CW = 960, CH = 380, GH = 3 * 142 + 14;
+const cv = $('cv'), gr = $('gr');
+const g = cv.getContext('2d'), gg = gr.getContext('2d');
+function setSize(c, ctx, w, h) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+setSize(cv, g, CW, CH); setSize(gr, gg, CW, GH);
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const G = 9.81;
+const BLUE = '#1f6feb', RED = '#d62839';
+const COL = [BLUE, RED];
+const SUB = ['₁', '₂'];
+
+/* ---------- μορφοποίηση ---------- */
+const fx = (x, d) => { if (Math.abs(x) < 0.5 * Math.pow(10, -d)) x = 0; return (x < 0 ? '−' : '') + Math.abs(x).toFixed(d).replace('.', ','); };
+function num(x, sig) {
+  sig = sig || 3; if (!isFinite(x)) return '∞'; if (x === 0) return '0';
+  let s = Math.abs(x).toPrecision(sig);
+  if (s.indexOf('e') >= 0) s = String(Number(s)); else if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return (x < 0 ? '−' : '') + s.replace('.', ',');
+}
+const SIP = [[1e3, 'k'], [1, ''], [1e-3, 'm']];
+function si(x, unit) { if (x === 0) return '0 ' + unit; const a = Math.abs(x); for (const f of SIP) if (a >= f[0] * 0.9995) return num(x / f[0]) + ' ' + f[1] + unit; return num(x / 1e-3) + ' m' + unit; }
+function niceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(x))), m = x / p; return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p; }
+function h(tag, attrs) {
+  const el = document.createElement(tag);
+  if (attrs) for (const k in attrs) { if (k === 'class') el.className = attrs[k]; else if (k.slice(0, 2) === 'on') el[k] = attrs[k]; else el.setAttribute(k, attrs[k]); }
+  for (let i = 2; i < arguments.length; i++) { const c = arguments[i]; if (c === null || c === undefined) continue; el.append(c.nodeType ? c : document.createTextNode(c)); }
+  return el;
+}
+
+/* ---------- παράμετροι ---------- */
+const P = { dim: 1, type: 'central', coll: 'elastic', m1: 2, m2: 1, v1: 4, v2: 0, th1: 30, v2m: 0, th2: 180, b: 0.25, mu: 0 };
+const getMode = () => P.dim === 1 ? 'c1' : (P.type === 'central' ? 'c2' : P.type === 'oblique' ? 'o2' : 'e2');
+const radius = m => 0.2 * Math.sqrt(m);
+
+/* ---------- προσομοίωση (προϋπολογισμός ολόκληρης της κίνησης) ---------- */
+function simulate() {
+  const mode = getMode();
+  const m = [P.m1, P.m2], r = [radius(P.m1), radius(P.m2)], R = r[0] + r[1], a = P.mu * G;
+  let u1, u2, n;
+  if (mode === 'o2') {
+    const t1 = P.th1 * Math.PI / 180, t2 = P.th2 * Math.PI / 180;
+    u1 = [P.v1 * Math.cos(t1), P.v1 * Math.sin(t1)]; u2 = [P.v2m * Math.cos(t2), P.v2m * Math.sin(t2)]; n = [1, 0];
+  } else if (mode === 'e2') {
+    const bb = clamp(P.b, -0.95 * R, 0.95 * R);
+    u1 = [P.v1, 0]; u2 = [P.v2, 0]; n = [Math.sqrt(1 - (bb / R) * (bb / R)), bb / R];
+  } else { u1 = [P.v1, 0]; u2 = [P.v2, 0]; n = [1, 0]; }
+  const U = [u1, u2], sp = [Math.hypot(u1[0], u1[1]), Math.hypot(u2[0], u2[1])];
+  let T = Math.min(1, 4 / Math.max(sp[0], sp[1], 1e-9));
+  if (a > 0) sp.forEach(s => { if (s > 1e-9) T = Math.min(T, 0.6 * s / a); });
+  T = Math.max(T, 0.02);
+  const disp = s => a > 0 ? s * T - 0.5 * a * T * T : s * T;
+  const C = [[-r[0] * n[0], -r[0] * n[1]], [r[1] * n[0], r[1] * n[1]]];
+  const vc = [0, 1].map(i => { const s = sp[i], f = s > 1e-9 ? Math.max(s - a * T, 0) / s : 0; return [U[i][0] * f, U[i][1] * f]; });
+  const approach = ((vc[0][0] - vc[1][0]) * n[0] + (vc[0][1] - vc[1][1]) * n[1]) > 1e-9;
+  const st = [0, 1].map(i => { const s = sp[i], d = s > 1e-9 && approach ? disp(s) / s : 0; return { x: C[i][0] - U[i][0] * d, y: C[i][1] - U[i][1] * d, vx: U[i][0], vy: U[i][1] }; });
+
+  const dt = 0.0005, saveDt = 0.01, M = m[0] + m[1];
+  const frames = []; let t = 0, nextSave = 0, tc = null, stuck = false, off = [0, 0], ev = null, pc = null, nColl = 0;
+  const snap = (tt, v1, v2) => frames.push({
+    t: tt, x1: st[0].x, y1: st[0].y, vx1: v1 ? v1[0] : st[0].vx, vy1: v1 ? v1[1] : st[0].vy,
+    x2: st[1].x, y2: st[1].y, vx2: v2 ? v2[0] : st[1].vx, vy2: v2 ? v2[1] : st[1].vy
+  });
+  const speed = b => Math.hypot(b.vx, b.vy);
+  function mv(b) {
+    const s = speed(b); if (s < 1e-12) return;
+    const ux = b.vx / s, uy = b.vy / s;
+    if (a <= 0) { b.x += b.vx * dt; b.y += b.vy * dt; return; }
+    if (s > a * dt) { const d = s * dt - 0.5 * a * dt * dt; b.x += ux * d; b.y += uy * d; b.vx = ux * (s - a * dt); b.vy = uy * (s - a * dt); }
+    else { const d = s * s / (2 * a); b.x += ux * d; b.y += uy * d; b.vx = 0; b.vy = 0; }
+  }
+  for (let it = 0; it < 80000; it++) {
+    if (t >= nextSave - 1e-12) { snap(t); nextSave += saveDt; }
+    if (tc !== null) {
+      const el = t - tc;
+      const moved = Math.max(Math.hypot(st[0].x - pc[0].x, st[0].y - pc[0].y), Math.hypot(st[1].x - pc[1].x, st[1].y - pc[1].y));
+      const stopped = !(speed(st[0]) > 1e-9 || speed(st[1]) > 1e-9);
+      if (el >= 6 || (el >= 1 && (stopped || moved >= 6))) break;
+    } else if (t >= T + 3) break;
+    if (stuck) { mv(st[0]); st[1].x = st[0].x + off[0]; st[1].y = st[0].y + off[1]; st[1].vx = st[0].vx; st[1].vy = st[0].vy; }
+    else { mv(st[0]); mv(st[1]); }
+    t += dt;
+    if (!stuck) {
+      const dx = st[1].x - st[0].x, dy = st[1].y - st[0].y, dist = Math.hypot(dx, dy);
+      if (dist <= R) {
+        const nn = dist > 1e-9 ? [dx / dist, dy / dist] : n;
+        const vn = (st[0].vx - st[1].vx) * nn[0] + (st[0].vy - st[1].vy) * nn[1];
+        if (vn > 1e-9) {
+          const pre = [[st[0].vx, st[0].vy], [st[1].vx, st[1].vy]];
+          snap(t, pre[0], pre[1]);
+          let post;
+          if (P.coll === 'elastic') {
+            const J = 2 * m[0] * m[1] / M * vn;
+            post = [[pre[0][0] - J / m[0] * nn[0], pre[0][1] - J / m[0] * nn[1]], [pre[1][0] + J / m[1] * nn[0], pre[1][1] + J / m[1] * nn[1]]];
+          } else {
+            const Vx = (m[0] * pre[0][0] + m[1] * pre[1][0]) / M, Vy = (m[0] * pre[0][1] + m[1] * pre[1][1]) / M;
+            post = [[Vx, Vy], [Vx, Vy]];
+          }
+          const ov = R - dist;
+          st[0].x -= ov * m[1] / M * nn[0]; st[0].y -= ov * m[1] / M * nn[1];
+          st[1].x += ov * m[0] / M * nn[0]; st[1].y += ov * m[0] / M * nn[1];
+          st[0].vx = post[0][0]; st[0].vy = post[0][1]; st[1].vx = post[1][0]; st[1].vy = post[1][1];
+          if (P.coll === 'plastic') { stuck = true; off = [st[1].x - st[0].x, st[1].y - st[0].y]; }
+          nColl++;
+          if (tc === null) {
+            tc = t; pc = [{ x: st[0].x, y: st[0].y }, { x: st[1].x, y: st[1].y }];
+            ev = { t: t, pre: pre, post: post, n: nn, pos: [{ x: st[0].x, y: st[0].y }, { x: st[1].x, y: st[1].y }] };
+          }
+          snap(t + 1e-6);
+        }
+      }
+    }
+  }
+  snap(t);
+  return { frames: frames, tc: tc, ev: ev, n: ev ? ev.n : n, m: m, r: r, R: R, a: a, approach: approach, Tapp: T, mode: mode, nColl: nColl, Tend: t, startVel: U };
+}
+
+/* ---------- πρόσβαση σε καρέ ---------- */
+let S = null, tp = 0, playing = false;
+function frameAt(tq) {
+  const f = S.frames; let lo = 0, hi = f.length - 1;
+  if (tq <= f[0].t) return f[0]; if (tq >= f[hi].t) return f[hi];
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (f[mid].t <= tq) lo = mid; else hi = mid; }
+  const A = f[lo], B = f[hi], d = B.t - A.t, w = d > 1e-12 ? (tq - A.t) / d : 1, L = (p, q) => p + (q - p) * w;
+  return { t: tq, x1: L(A.x1, B.x1), y1: L(A.y1, B.y1), vx1: L(A.vx1, B.vx1), vy1: L(A.vy1, B.vy1), x2: L(A.x2, B.x2), y2: L(A.y2, B.y2), vx2: L(A.vx2, B.vx2), vy2: L(A.vy2, B.vy2) };
+}
+
+/* ---------- κάμερα ---------- */
+const cam = { cx: 0, cy: 0, k: 40, floorY: CH * 0.7, pScale: 1 };
+function setCamera() {
+  let xmin = 1e9, xmax = -1e9, ymin = 1e9, ymax = -1e9, pmax = 1e-9;
+  const tcut = (S.tc !== null ? S.tc : S.Tapp) + 0.6;
+  for (const f of S.frames) {
+    if (f.t > tcut) break;
+    xmin = Math.min(xmin, f.x1 - S.r[0], f.x2 - S.r[1]); xmax = Math.max(xmax, f.x1 + S.r[0], f.x2 + S.r[1]);
+    ymin = Math.min(ymin, f.y1 - S.r[0], f.y2 - S.r[1]); ymax = Math.max(ymax, f.y1 + S.r[0], f.y2 + S.r[1]);
+    pmax = Math.max(pmax, S.m[0] * Math.hypot(f.vx1, f.vy1), S.m[1] * Math.hypot(f.vx2, f.vy2));
+  }
+  const pad = 0.6, Wc = Math.max(xmax - xmin + 2 * pad, 8);
+  cam.cx = (xmin + xmax) / 2; cam.cy = (ymin + ymax) / 2;
+  if (P.dim === 1) cam.k = Math.min((CW * 0.94) / Wc, 130);
+  else { const Hc = Math.max(ymax - ymin + 2 * pad + 0.8, 4); cam.k = Math.min((CW * 0.94) / Wc, (CH * 0.9) / Hc, 130); }
+  cam.pScale = 90 / pmax;
+}
+const sX = x => CW / 2 + (x - cam.cx) * cam.k;
+const sY = y => CH / 2 - (y - cam.cy) * cam.k;
+
+/* ---------- σχεδίαση ---------- */
+function arrow(ctx, x0, y0, x1, y1, col, w, dash) {
+  const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy); if (L < 3) return;
+  const ang = Math.atan2(dy, dx), hl = Math.min(12, L * 0.5);
+  ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = w || 3; ctx.lineCap = 'round';
+  if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - Math.cos(ang) * hl * 0.7, y1 - Math.sin(ang) * hl * 0.7); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - hl * Math.cos(ang - 0.4), y1 - hl * Math.sin(ang - 0.4)); ctx.lineTo(x1 - hl * Math.cos(ang + 0.4), y1 - hl * Math.sin(ang + 0.4)); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function ctext(ctx, s, x, y, col, size, align, weight) {
+  ctx.font = (weight || 600) + ' ' + (size || 13) + 'px system-ui, Arial, sans-serif';
+  ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,.92)'; ctx.lineJoin = 'round';
+  ctx.strokeText(s, x, y); ctx.fillStyle = col; ctx.fillText(s, x, y);
+}
+function rrect(ctx, x, y, w, hh, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + hh, r); ctx.arcTo(x + w, y + hh, x, y + hh, r);
+  ctx.arcTo(x, y + hh, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+const AV = 12;   // px ανά m/s
+const tgl = id => $(id).checked;
+
+function drawScene() {
+  g.clearRect(0, 0, CW, CH);
+  const f = frameAt(tp), oneD = P.dim === 1;
+  const X = [f.x1, f.x2], Y = [f.y1, f.y2], VX = [f.vx1, f.vx2], VY = [f.vy1, f.vy2];
+  const k = cam.k, stuckNow = P.coll === 'plastic' && S.tc !== null && tp >= S.tc;
+
+  // δάπεδο
+  if (oneD) {
+    g.fillStyle = '#ece6d8'; g.fillRect(0, cam.floorY, CW, CH - cam.floorY);
+    g.strokeStyle = '#a89f8a'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, cam.floorY); g.lineTo(CW, cam.floorY); g.stroke();
+  } else {
+    g.fillStyle = '#f3efe4'; g.fillRect(0, 0, CW, CH);
+  }
+  // κανόνας / πλέγμα
+  const step = niceStep(60 / k), x0 = cam.cx - CW / 2 / k, x1 = cam.cx + CW / 2 / k;
+  g.save(); g.font = '600 11px system-ui, Arial'; g.fillStyle = '#7a7261'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (let xw = Math.ceil(x0 / step) * step; xw <= x1; xw += step) {
+    const sx = sX(xw);
+    if (oneD) { g.strokeStyle = '#a89f8a'; g.lineWidth = 1.3; g.beginPath(); g.moveTo(sx, cam.floorY); g.lineTo(sx, cam.floorY + 8); g.stroke(); g.fillText(num(xw, 3) + ' m', sx, cam.floorY + 20); }
+    else { g.strokeStyle = '#e2dccb'; g.lineWidth = 1; g.beginPath(); g.moveTo(sx, 0); g.lineTo(sx, CH); g.stroke(); g.fillText(num(xw, 3), sx, CH - 8); }
+  }
+  if (!oneD) {
+    const y0 = cam.cy - CH / 2 / k, y1 = cam.cy + CH / 2 / k;
+    for (let yw = Math.ceil(y0 / step) * step; yw <= y1; yw += step) {
+      const sy = sY(yw); g.strokeStyle = '#e2dccb'; g.lineWidth = 1; g.beginPath(); g.moveTo(0, sy); g.lineTo(CW, sy); g.stroke(); g.textAlign = 'left'; g.fillText(num(yw, 3), 4, sy - 7);
+    }
+  }
+  g.restore();
+
+  // γεωμετρία κρούσης (2Δ)
+  if (!oneD && tgl('tG') && S.ev) {
+    const c = S.ev.pos, nn = S.n, tt = [-nn[1], nn[0]];
+    const px = c[0].x + S.r[0] * nn[0], py = c[0].y + S.r[0] * nn[1];
+    const al = S.tc !== null && tp >= S.tc ? 1 : 0.4, L = 2.4 * S.R;
+    g.save(); g.globalAlpha = al; g.setLineDash([7, 5]); g.lineWidth = 1.6;
+    g.strokeStyle = '#6b4fbb'; g.beginPath(); g.moveTo(sX(px - nn[0] * L), sY(py - nn[1] * L)); g.lineTo(sX(px + nn[0] * L), sY(py + nn[1] * L)); g.stroke();
+    g.strokeStyle = '#8a8a99'; g.beginPath(); g.moveTo(sX(px - tt[0] * L * 0.8), sY(py - tt[1] * L * 0.8)); g.lineTo(sX(px + tt[0] * L * 0.8), sY(py + tt[1] * L * 0.8)); g.stroke();
+    g.setLineDash([]); g.restore();
+    g.save(); g.globalAlpha = al;
+    ctext(g, 'ευθεία κέντρων', sX(px + nn[0] * L * 0.95), sY(py + nn[1] * L * 0.95) - 10, '#6b4fbb', 11, 'center', 700);
+    ctext(g, 'εφαπτομένη', sX(px + tt[0] * L * 0.8), sY(py + tt[1] * L * 0.8) - 10, '#6b6b7a', 11, 'center', 700);
+    g.restore();
+  }
+  // ίχνος
+  if (!oneD && tgl('tT')) {
+    for (let i = 0; i < 2; i++) {
+      g.save(); g.strokeStyle = COL[i]; g.globalAlpha = 0.35; g.lineWidth = 2.5; g.beginPath();
+      let first = true;
+      for (const fr of S.frames) { if (fr.t > tp) break; const x = sX(i ? fr.x2 : fr.x1), y = sY(i ? fr.y2 : fr.y1); if (first) { g.moveTo(x, y); first = false; } else g.lineTo(x, y); }
+      g.lineTo(sX(X[i]), sY(Y[i])); g.stroke(); g.restore();
+    }
+  }
+  // σώματα
+  for (let i = 0; i < 2; i++) {
+    const rp = S.r[i] * k, cxp = sX(X[i]);
+    if (oneD) {
+      const hh = Math.max(rp * 1.7, 14), top = cam.floorY - hh;
+      g.fillStyle = i ? '#f7c6cc' : '#c9dcfb'; g.strokeStyle = COL[i]; g.lineWidth = 2.5;
+      rrect(g, cxp - rp, top, 2 * rp, hh, 5); g.fill(); g.stroke();
+      ctext(g, String(i + 1), cxp, top + hh / 2, COL[i], Math.max(12, Math.min(22, rp * 0.9)), 'center', 800);
+    } else {
+      const cyp = sY(Y[i]);
+      const gd = g.createRadialGradient(cxp - rp * 0.3, cyp - rp * 0.3, rp * 0.1, cxp, cyp, rp);
+      gd.addColorStop(0, i ? '#fde3e6' : '#e3eefe'); gd.addColorStop(1, i ? '#f0a4ad' : '#9cc0f7');
+      g.fillStyle = gd; g.strokeStyle = COL[i]; g.lineWidth = 2.5;
+      g.beginPath(); g.arc(cxp, cyp, rp, 0, 6.3); g.fill(); g.stroke();
+      ctext(g, String(i + 1), cxp, cyp, COL[i], Math.max(12, Math.min(22, rp * 0.9)), 'center', 800);
+    }
+  }
+  if (stuckNow) {
+    g.save(); g.strokeStyle = '#444'; g.lineWidth = 3;
+    const ya = oneD ? cam.floorY - Math.max(S.r[0] * k * 0.85, 7) : sY(Y[0]), yb = oneD ? cam.floorY - Math.max(S.r[1] * k * 0.85, 7) : sY(Y[1]);
+    g.beginPath(); g.moveTo(sX(X[0]), ya); g.lineTo(sX(X[1]), yb); g.stroke(); g.restore();
+  }
+  // διανύσματα
+  const nn = S.n, tt = [-nn[1], nn[0]];
+  for (let i = 0; i < 2; i++) {
+    const vx = VX[i], vy = VY[i], sv = Math.hypot(vx, vy);
+    let bx, by;
+    if (oneD) { const hh = Math.max(S.r[i] * k * 1.7, 14); bx = sX(X[i]); by = cam.floorY - hh - 20; } else { bx = sX(X[i]); by = sY(Y[i]); }
+    if (tgl('tV') && sv > 0.02) {
+      const ex = bx + vx * AV, ey = oneD ? by : by - vy * AV;
+      arrow(g, bx, by, ex, ey, COL[i], 3.5);
+      ctext(g, 'υ' + SUB[i] + ' = ' + fx(oneD ? vx : sv, 2) + ' m/s', ex + (oneD ? 0 : Math.sign(vx || 1) * 6), ey - 12, COL[i], 12, 'center', 700);
+    }
+    if (tgl('tP') && sv > 0.02) {
+      const pxv = S.m[i] * vx * cam.pScale, pyv = S.m[i] * vy * cam.pScale;
+      let ox = 0, oy = oneD ? -22 : 0;
+      if (!oneD && sv > 1e-6) { ox = -vy / sv * 9; oy = -vx / sv * 9 * -1; oy = (vx / sv) * 9 * -1; }
+      const sx0 = bx + ox, sy0 = by + oy;
+      arrow(g, sx0, sy0, sx0 + pxv, oneD ? sy0 : sy0 - pyv, '#6b4fbb', 3, [6, 4]);
+      ctext(g, 'p' + SUB[i] + ' = ' + fx(S.m[i] * (oneD ? vx : sv), 2), sx0 + pxv, (oneD ? sy0 : sy0 - pyv) - 12, '#6b4fbb', 11, 'center', 700);
+    }
+    if (!oneD && tgl('tC') && sv > 0.05) {
+      const vn = vx * nn[0] + vy * nn[1], vt = vx * tt[0] + vy * tt[1];
+      arrow(g, bx, by, bx + vn * nn[0] * AV, by - vn * nn[1] * AV, COL[i], 2, [4, 3]);
+      arrow(g, bx, by, bx + vt * tt[0] * AV, by - vt * tt[1] * AV, COL[i], 2, [1, 4]);
+      ctext(g, 'υₙ=' + fx(vn, 2), bx + vn * nn[0] * AV, by - vn * nn[1] * AV + 12, COL[i], 10, 'center', 600);
+      ctext(g, 'υₜ=' + fx(vt, 2), bx + vt * tt[0] * AV, by - vt * tt[1] * AV + 12, COL[i], 10, 'center', 600);
+    }
+  }
+  // υπόμνημα και χρόνος
+  g.save(); g.textAlign = 'left'; g.textBaseline = 'middle';
+  [0, 1].forEach(i => {
+    g.fillStyle = COL[i]; g.beginPath(); g.arc(18, 20 + i * 22, 7, 0, 6.3); g.fill();
+    ctext(g, 'σώμα ' + (i + 1) + ': m' + SUB[i] + ' = ' + num(S.m[i]) + ' kg', 32, 20 + i * 22, '#1d2433', 13, 'left', 600);
+  });
+  ctext(g, 't = ' + fx(tp, 2) + ' s', CW - 14, 20, '#1f4f8f', 14, 'right', 700);
+  if (P.mu > 0) ctext(g, 'μ = ' + fx(P.mu, 2), CW - 14, 42, '#7a6a3a', 13, 'right', 700);
+  if (S.tc !== null && Math.abs(tp - S.tc) < 0.06) ctext(g, 'ΚΡΟΥΣΗ', CW / 2, 24, '#c0392b', 16, 'center', 800);
+  g.restore();
+}
+
+/* ---------- δεδομένα γραφημάτων ---------- */
+let GD = null;
+function buildGraphData() {
+  const F = S.frames, m = S.m, oneD = P.dim === 1;
+  const Ts = F.map(f => f.t);
+  const v1 = F.map(f => oneD ? f.vx1 : Math.hypot(f.vx1, f.vy1)), v2 = F.map(f => oneD ? f.vx2 : Math.hypot(f.vx2, f.vy2));
+  const p1 = F.map(f => m[0] * (oneD ? f.vx1 : Math.hypot(f.vx1, f.vy1))), p2 = F.map(f => m[1] * (oneD ? f.vx2 : Math.hypot(f.vx2, f.vy2)));
+  const Px = F.map(f => m[0] * f.vx1 + m[1] * f.vx2), Py = F.map(f => m[0] * f.vy1 + m[1] * f.vy2);
+  const K1 = F.map(f => 0.5 * m[0] * (f.vx1 * f.vx1 + f.vy1 * f.vy1)), K2 = F.map(f => 0.5 * m[1] * (f.vx2 * f.vx2 + f.vy2 * f.vy2));
+  const Kt = K1.map((a, i) => a + K2[i]);
+  const panels = [];
+  panels.push({ title: oneD ? 'Ταχύτητα' : 'Μέτρο ταχύτητας', unit: 'm/s', series: [{ n: oneD ? 'υ₁' : '|υ₁|', c: BLUE, v: v1 }, { n: oneD ? 'υ₂' : '|υ₂|', c: RED, v: v2 }] });
+  if (oneD) panels.push({ title: 'Ορμή', unit: 'kg·m/s', series: [{ n: 'p₁', c: BLUE, v: p1 }, { n: 'p₂', c: RED, v: p2 }, { n: 'Σp', c: '#2a2f3a', v: Px }] });
+  else panels.push({ title: 'Ορμή συστήματος', unit: 'kg·m/s', series: [{ n: 'Σpₓ', c: '#2a9d57', v: Px }, { n: 'Σpᵧ', c: '#8e44ad', v: Py }, { n: '|Σp|', c: '#2a2f3a', v: Px.map((a, i) => Math.hypot(a, Py[i])) }] });
+  panels.push({ title: 'Κινητική ενέργεια', unit: 'J', series: [{ n: 'K₁', c: BLUE, v: K1 }, { n: 'K₂', c: RED, v: K2 }, { n: 'ΣK', c: '#2a2f3a', v: Kt }] });
+  GD = { Ts: Ts, panels: panels };
+}
+function valAt(arr, tq) {
+  const T = GD.Ts; let lo = 0, hi = T.length - 1;
+  if (tq <= T[0]) return arr[0]; if (tq >= T[hi]) return arr[hi];
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (T[mid] <= tq) lo = mid; else hi = mid; }
+  const d = T[hi] - T[lo], w = d > 1e-12 ? (tq - T[lo]) / d : 1; return arr[lo] + (arr[hi] - arr[lo]) * w;
+}
+const GL = 84, GR = CW - 16;
+function drawGraphs() {
+  const ctx = gg; ctx.clearRect(0, 0, CW, GH);
+  const T = S.Tend, pw = GR - GL;
+  GD.panels.forEach((p, pi) => {
+    const top = 8 + pi * 142, pt = top + 24, pb = top + 112, ph = pb - pt;
+    let lo = 0, hi = 0;
+    p.series.forEach(s => { for (let i = 0; i < s.v.length; i++) { if (s.v[i] < lo) lo = s.v[i]; if (s.v[i] > hi) hi = s.v[i]; } });
+    if (hi - lo < 1e-9) { hi = 1; lo = -1; }
+    const sp = hi - lo; hi += 0.08 * sp; if (lo < 0) lo -= 0.08 * sp;
+    const Y = v => pb - (v - lo) / (hi - lo) * ph, Xp = tt => GL + tt / T * pw;
+    ctx.fillStyle = '#fbfcfe'; ctx.fillRect(GL, pt, pw, ph); ctx.strokeStyle = '#d5dbe5'; ctx.lineWidth = 1; ctx.strokeRect(GL + 0.5, pt + 0.5, pw, ph);
+    const step = niceStep((hi - lo) / 4), first = Math.ceil(lo / step - 1e-9) * step;
+    ctx.font = '600 11px system-ui, Arial'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (let v = first; v <= hi + 1e-12; v += step) {
+      const y = Y(v), z = Math.abs(v) < step * 1e-6;
+      ctx.strokeStyle = z ? '#8b97ab' : '#e6eaf1'; ctx.lineWidth = z ? 1.4 : 1; ctx.beginPath(); ctx.moveTo(GL, y); ctx.lineTo(GR, y); ctx.stroke();
+      ctx.fillStyle = '#5b667a'; ctx.fillText(z ? '0' : num(v, 3), GL - 6, y);
+    }
+    ctx.textAlign = 'center';
+    const ts = niceStep(T / 6);
+    for (let tt = 0; tt <= T + 1e-9; tt += ts) {
+      const x = Xp(tt); ctx.strokeStyle = '#eef1f6'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, pt); ctx.lineTo(x, pb); ctx.stroke();
+      ctx.fillStyle = '#5b667a'; ctx.fillText(num(tt, 3) + ' s', x, pb + 11);
+    }
+    if (S.tc !== null) { const x = Xp(S.tc); ctx.save(); ctx.strokeStyle = '#e8890c'; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(x, pt); ctx.lineTo(x, pb); ctx.stroke(); ctx.restore(); ctx.font = '600 10px system-ui, Arial'; ctx.textAlign = 'left'; ctx.fillStyle = '#b25f00'; ctx.fillText('κρούση', x + 3, pt + 8); }
+    p.series.forEach(s => {
+      ctx.save(); ctx.beginPath(); ctx.rect(GL, pt, pw, ph); ctx.clip();
+      ctx.strokeStyle = s.c; ctx.lineWidth = 2.2; ctx.lineJoin = 'round'; ctx.beginPath();
+      for (let i = 0; i < GD.Ts.length; i++) { const x = Xp(GD.Ts[i]), y = Y(s.v[i]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
+      ctx.stroke(); ctx.restore();
+    });
+    // τίτλος και τρέχουσες τιμές
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.font = '700 12px system-ui, Arial'; ctx.fillStyle = '#34425a';
+    ctx.fillText(p.title + ' (' + p.unit + ')', GL, top + 9);
+    let lx = GL + ctx.measureText(p.title + ' (' + p.unit + ')').width + 22;
+    p.series.forEach(s => {
+      const txt = s.n + ' = ' + fx(valAt(s.v, tp), 2);
+      ctx.fillStyle = s.c; ctx.fillRect(lx, top + 7, 14, 4); ctx.fillText(txt, lx + 19, top + 9);
+      lx += 19 + ctx.measureText(txt).width + 18;
+    });
+    const xc = Xp(clamp(tp, 0, T)); ctx.strokeStyle = '#334'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(xc, pt); ctx.lineTo(xc, pb); ctx.stroke();
+  });
+}
+
+/* ---------- πίνακας αποτελεσμάτων και σχόλια ---------- */
+function renderResults() {
+  const oneD = P.dim === 1, m = S.m, ev = S.ev, mu = P.mu;
+  const box = $('tbl'), res = $('res');
+  if (!ev) { box.innerHTML = ''; res.innerHTML = '<span style="color:#a02d22;font-weight:600">Δεν γίνεται κρούση με αυτές τις τιμές.</span> Τα σώματα δεν πλησιάζουν μεταξύ τους (ή η τριβή τα σταματά πριν συναντηθούν).'; return; }
+  const pre = ev.pre, post = ev.post;
+  const row = (lab, fn, d) => '<tr><td>' + lab + '</td>' + [0, 1].map(i => '<td>' + fn(i) + '</td>').join('') + '<td>' + fn(2) + '</td></tr>';
+  const sec = (t) => '<tr class="sec"><td colspan="4">' + t + '</td></tr>';
+  const block = (vs) => {
+    const sp = i => Math.hypot(vs[i][0], vs[i][1]);
+    const Px = m[0] * vs[0][0] + m[1] * vs[1][0], Py = m[0] * vs[0][1] + m[1] * vs[1][1];
+    const K = i => 0.5 * m[i] * sp(i) * sp(i), Kt = K(0) + K(1);
+    let h = '';
+    if (oneD) {
+      h += row('υ (m/s)', i => i < 2 ? fx(vs[i][0], 3) : fx((m[0] * vs[0][0] + m[1] * vs[1][0]) / (m[0] + m[1]), 3) + ' (κ.μ.)');
+      h += row('p (kg·m/s)', i => i < 2 ? fx(m[i] * vs[i][0], 3) : fx(Px, 3));
+    } else {
+      h += row('υₓ, υᵧ (m/s)', i => i < 2 ? '(' + fx(vs[i][0], 2) + ' ; ' + fx(vs[i][1], 2) + ')' : '(' + fx((Px) / (m[0] + m[1]), 2) + ' ; ' + fx(Py / (m[0] + m[1]), 2) + ') κ.μ.');
+      h += row('|υ| (m/s)', i => i < 2 ? fx(sp(i), 3) : '');
+      h += row('pₓ, pᵧ (kg·m/s)', i => i < 2 ? '(' + fx(m[i] * vs[i][0], 2) + ' ; ' + fx(m[i] * vs[i][1], 2) + ')' : '(' + fx(Px, 2) + ' ; ' + fx(Py, 2) + ')');
+      h += row('|p| (kg·m/s)', i => i < 2 ? fx(m[i] * sp(i), 3) : fx(Math.hypot(Px, Py), 3));
+    }
+    h += row('K (J)', i => i < 2 ? fx(K(i), 3) : fx(Kt, 3));
+    return { h: h, Px: Px, Py: Py, Kt: Kt };
+  };
+  const A = block(pre), B = block(post);
+  box.innerHTML = '<table><thead><tr><th></th><th style="color:' + BLUE + '">Σώμα 1</th><th style="color:' + RED + '">Σώμα 2</th><th>Σύστημα</th></tr></thead><tbody>' +
+    sec('Ακριβώς πριν την κρούση (t = ' + fx(ev.t, 3) + ' s)') + A.h + sec('Ακριβώς μετά την κρούση') + B.h + '</tbody></table>';
+  const dP = Math.hypot(B.Px - A.Px, B.Py - A.Py), dK = B.Kt - A.Kt;
+  const nn = ev.n, vrel0 = (pre[0][0] - pre[1][0]) * nn[0] + (pre[0][1] - pre[1][1]) * nn[1], vrel1 = (post[1][0] - post[0][0]) * nn[0] + (post[1][1] - post[0][1]) * nn[1];
+  const e = vrel0 > 1e-9 ? vrel1 / vrel0 : 0;
+  let html = '';
+  html += 'Ορμή συστήματος: ' + (dP < 1e-6 ? '<span class="ok">διατηρείται στην κρούση</span> (Δp = 0)' : 'Δp = ' + fx(dP, 4)) + '.<br>';
+  html += 'Κινητική ενέργεια: ΔΚ = ' + fx(dK, 3) + ' J' + (A.Kt > 1e-9 ? ' (' + fx(dK / A.Kt * 100, 1) + ' %)' : '') + (Math.abs(dK) < 1e-6 ? ' · <span class="ok">διατηρείται</span>' : ' · χάθηκε ως θερμότητα και παραμόρφωση') + '.<br>';
+  html += 'Συντελεστής αποκατάστασης: e = ' + fx(e, 2) + (P.coll === 'elastic' ? ' (ελαστική)' : ' (πλαστική)') + '.';
+  if (mu > 0) {
+    html += '<br>Τριβή δαπέδου (μ = ' + fx(mu, 2) + ', επιβράδυνση ' + fx(mu * G, 2) + ' m/s²): μετά την κρούση ';
+    const parts = [0, 1].map(i => { const s = Math.hypot(post[i][0], post[i][1]); return 'σώμα ' + (i + 1) + ' διανύει ' + fx(s * s / (2 * mu * G), 2) + ' m σε ' + fx(s / (mu * G), 2) + ' s'; });
+    html += parts.join(', ') + '. Η ορμή του συστήματος δεν διατηρείται μετά την κρούση, γιατί η τριβή είναι εξωτερική δύναμη.';
+    const s0 = Math.hypot(S.startVel[0][0], S.startVel[0][1]), s1 = Math.hypot(S.startVel[1][0], S.startVel[1][1]);
+    const c0 = Math.hypot(pre[0][0], pre[0][1]), c1 = Math.hypot(pre[1][0], pre[1][1]);
+    html += '<br>Λόγω τριβής, οι ταχύτητες ακριβώς πριν την κρούση (' + fx(c0, 2) + ' και ' + fx(c1, 2) + ' m/s) είναι μικρότερες από τις αρχικές (' + fx(s0, 2) + ' και ' + fx(s1, 2) + ' m/s).';
+  }
+  res.innerHTML = html;
+}
+function renderStatus() {
+  const mode = getMode(), pl = P.coll === 'plastic', mu = P.mu > 0; let s = '';
+  if (!S.approach) s += '<span class="warn">Τα σώματα δεν πλησιάζουν μεταξύ τους, άρα δεν θα γίνει κρούση. ' + (mode === 'c1' || mode === 'c2' ? 'Το σώμα 1 πρέπει να έχει μεγαλύτερη ταχύτητα από το σώμα 2 (προς τα δεξιά). ' : 'Η σχετική ταχύτητα πρέπει να έχει συνιστώσα προς την ευθεία των κέντρων. ') + '</span><br>';
+  if (mode === 'c1') s += 'Κεντρική κρούση σε μία διάσταση: οι ταχύτητες είναι πάνω στην ευθεία που ενώνει τα κέντρα. ';
+  else if (mode === 'c2') s += 'Κεντρική κρούση: οι ταχύτητες βρίσκονται πάνω στην ευθεία των κέντρων. ';
+  else if (mode === 'o2') s += 'Πλάγια κρούση: η ταχύτητα του σώματος 1 σχηματίζει γωνία θ με την ευθεία των κέντρων. Η συνιστώσα κάθετα στην εφαπτομένη (κατά την ευθεία των κέντρων) αλλάζει, ενώ η εφαπτομενική μένει σταθερή (λεία σώματα). ';
+  else s += 'Έκκεντρη κρούση: οι ταχύτητες είναι παράλληλες αλλά οι φορείς τους απέχουν b = ' + fx(clamp(P.b, -0.95 * S.R, 0.95 * S.R), 2) + ' m, οπότε η ευθεία των κέντρων είναι πλάγια ως προς την κίνηση. ';
+  s += pl ? 'Πλαστική: τα σώματα συνεχίζουν ενωμένα με κοινή ταχύτητα V = (m₁υ₁ + m₂υ₂)/(m₁ + m₂), διατηρείται η ορμή και η κινητική ενέργεια ελαττώνεται.' : 'Ελαστική: διατηρούνται η ορμή και η κινητική ενέργεια του συστήματος.';
+  if (mu) s += ' Με τριβή στο δάπεδο, τα σώματα επιβραδύνονται μέχρι να σταματήσουν.';
+  $('status').innerHTML = s;
+}
+
+/* ---------- χειριστήρια ---------- */
+const fields = {};
+function numField(key, label, min, max, step, unit, dec) {
+  const r = h('input', { type: 'range', min: min, max: max, step: step }), n = h('input', { type: 'number', min: min, max: max, step: step });
+  const set = (v, fromNum) => {
+    v = Number(v); if (!isFinite(v)) v = P[key];
+    const lim = fields[key];
+    v = clamp(v, +lim.r.min, +lim.r.max); P[key] = v; r.value = v; if (!fromNum || document.activeElement !== n) n.value = v.toFixed(dec);
+    onParam(key);
+  };
+  r.oninput = () => set(r.value); n.onchange = () => { set(n.value); n.value = P[key].toFixed(dec); };
+  r.value = P[key]; n.value = Number(P[key]).toFixed(dec);
+  fields[key] = { r: r, n: n, dec: dec };
+  return h('div', { class: 'nf' }, h('span', { class: 'nl' }, label), r, h('span', null, n, ' ', unit));
+}
+function renderParams() {
+  const box = $('params'); box.innerHTML = ''; const mode = getMode();
+  const grp = (i, t) => h('div', { class: 'grp' }, h('span', { class: 'dot', style: 'background:' + COL[i] }), t);
+  box.append(grp(0, 'Σώμα 1'), numField('m1', 'Μάζα m₁', 0.5, 10, 0.5, 'kg', 1));
+  if (mode === 'o2') {
+    box.append(numField('v1', 'Ταχύτητα υ₁', 0, 10, 0.1, 'm/s', 1), numField('th1', 'Γωνία θ₁', -80, 80, 1, '°', 0));
+  } else box.append(numField('v1', mode === 'c1' ? 'Ταχύτητα υ₁' : 'Ταχύτητα υ₁ (προς x)', -10, 10, 0.1, 'm/s', 1));
+  box.append(grp(1, 'Σώμα 2'), numField('m2', 'Μάζα m₂', 0.5, 10, 0.5, 'kg', 1));
+  if (mode === 'o2') {
+    box.append(numField('v2m', 'Ταχύτητα υ₂', 0, 10, 0.1, 'm/s', 1), numField('th2', 'Γωνία θ₂', -180, 180, 1, '°', 0));
+    box.append(h('div', { style: 'font-size:12px;color:#5b667a;margin-top:6px' }, 'Οι γωνίες μετρώνται ως προς την ευθεία των κέντρων (άξονας x, από το σώμα 1 προς το 2). θ₂ = 180° σημαίνει κίνηση του σώματος 2 προς το σώμα 1.'));
+  } else box.append(numField('v2', mode === 'c1' ? 'Ταχύτητα υ₂' : 'Ταχύτητα υ₂ (προς x)', -10, 10, 0.1, 'm/s', 1));
+  if (mode === 'e2') box.append(h('div', { class: 'grp' }, 'Έκκεντρη απόσταση'), numField('b', 'b (απόσταση φορέων)', -1, 1, 0.01, 'm', 2));
+  if (mode === 'c1') box.append(h('div', { style: 'font-size:12px;color:#5b667a;margin-top:6px' }, 'Το σώμα 1 βρίσκεται αριστερά του σώματος 2. Θετική ταχύτητα σημαίνει κίνηση προς τα δεξιά.'));
+  updateBLimits();
+  const fb = $('fric'); fb.innerHTML = '';
+  fb.append(numField('mu', 'Συντελεστής τριβής μ', 0, 0.5, 0.01, '', 2), h('div', { style: 'font-size:12px;color:#5b667a;margin-top:6px' }, 'μ = 0 σημαίνει λείο δάπεδο (χωρίς τριβή).'));
+}
+function updateBLimits() {
+  const f = fields.b; if (!f || getMode() !== 'e2') return;
+  const R = radius(P.m1) + radius(P.m2), lim = Math.floor(0.95 * R * 100) / 100;
+  f.r.min = -lim; f.r.max = lim; f.n.min = -lim; f.n.max = lim;
+  P.b = clamp(P.b, -lim, lim); f.r.value = P.b; if (document.activeElement !== f.n) f.n.value = P.b.toFixed(2);
+}
+function onParam(key) { if (key === 'm1' || key === 'm2') updateBLimits(); recompute(); }
+function recompute() {
+  S = simulate(); setCamera(); buildGraphData(); renderResults(); renderStatus();
+  tp = 0; playing = false; updatePlayUI();
+}
+function updatePlayUI() {
+  const atEnd = tp >= S.Tend - 1e-9;
+  $('play').textContent = playing ? '⏸ Παύση' : (atEnd ? '↺ Επανάληψη' : (tp > 0 ? '▶ Συνέχεια' : '▶ Εκκίνηση'));
+  $('tlab').textContent = 't = ' + fx(tp, 2) + ' s';
+}
+$('dim').onchange = () => { P.dim = +$('dim').value; $('typeW').classList.toggle('hide', P.dim === 1); renderParams(); recompute(); };
+$('type').onchange = () => { P.type = $('type').value; renderParams(); recompute(); };
+$('coll').onchange = () => { P.coll = $('coll').value; recompute(); };
+$('play').onclick = () => { if (tp >= S.Tend - 1e-9) tp = 0; playing = !playing; updatePlayUI(); };
+$('rew').onclick = () => { tp = 0; playing = false; updatePlayUI(); };
+$('tpos').oninput = () => { tp = $('tpos').value / 1000 * S.Tend; playing = false; updatePlayUI(); };
+['tV', 'tP', 'tC', 'tT', 'tG'].forEach(id => { $(id).onchange = () => {}; });
+function scrub(ev) { const r = gr.getBoundingClientRect(), x = (ev.clientX - r.left) * CW / r.width; tp = clamp((x - GL) / (GR - GL), 0, 1) * S.Tend; playing = false; updatePlayUI(); }
+let dragging = false;
+gr.addEventListener('pointerdown', ev => { dragging = true; try { gr.setPointerCapture(ev.pointerId); } catch (e) {} scrub(ev); });
+gr.addEventListener('pointermove', ev => { if (dragging) scrub(ev); });
+const endDrag = () => { dragging = false; };
+gr.addEventListener('pointerup', endDrag); gr.addEventListener('pointercancel', endDrag);
+
+/* ---------- βρόχος ---------- */
+let last = performance.now(), lastSlider = -1;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (playing) {
+    tp += dt * (+$('speed').value);
+    if (tp >= S.Tend) { tp = S.Tend; playing = false; }
+    updatePlayUI();
+  }
+  const sv = Math.round(tp / S.Tend * 1000);
+  if (sv !== lastSlider && document.activeElement !== $('tpos')) { $('tpos').value = sv; lastSlider = sv; }
+  drawScene(); drawGraphs();
+  requestAnimationFrame(frame);
+}
+renderParams(); recompute();
+window.__k = { P: P, get S() { return S; }, recompute: recompute, renderParams: renderParams, get tp() { return tp; }, set tp(v) { tp = v; }, setPlaying: v => { playing = v; }, fields: fields };
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
