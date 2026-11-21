@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Εποχές και διάρκεια ημέρας</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:system-ui,"Segoe UI",Roboto,Arial,sans-serif;margin:0;background:#f4f6f9;color:#1d2433}
+  .wrap{max-width:1400px;margin:0 auto;padding:16px}
+  h1{font-size:20px;margin:0 0 10px}
+  canvas{width:100%;height:auto;background:#fff;border:1px solid #d5dbe5;border-radius:10px;display:block}
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:12px;align-items:start}
+  .col{min-width:0}
+  .col > * + *{margin-top:10px}
+  @media (max-width:1000px){.grid{grid-template-columns:minmax(0,1fr)}}
+  .panel{background:#fff;border:1px solid #d5dbe5;border-radius:10px;padding:10px 12px}
+  .panel h2{font-size:14px;margin:0 0 8px;color:#34425a}
+  .row{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+  .row + .row{margin-top:8px}
+  label{font-size:14px;display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 8px;max-width:100%}
+  select{font:inherit;font-size:14px;padding:5px 8px;border-radius:6px;border:1px solid #9aa6ba;background:#fff;max-width:100%;min-width:0}
+  button.b{font:inherit;font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid #9aa6ba;background:#f0f3f8;cursor:pointer}
+  button.b:hover{background:#e3e9f3}
+  button.primary{font-size:14px;padding:7px 14px;background:#2b6cb0;border-color:#2b6cb0;color:#fff}
+  button.primary:hover{background:#245a93}
+  input[type=range]{min-width:0}
+  .nf{display:grid;grid-template-columns:112px minmax(0,1fr) 84px;gap:6px 8px;align-items:center;font-size:13px}
+  .nf + .nf{margin-top:6px}
+  .nf .nl{color:#34425a}
+  .nf input[type=number]{font:inherit;font-size:13px;width:100%;padding:4px 6px;border:1px solid #9aa6ba;border-radius:6px;background:#fff}
+  .hint{font-size:12px;color:#5b667a;margin-top:6px;line-height:1.45}
+  .btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  #status{font-size:14px;color:#2f3c55;line-height:1.55;background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 12px;min-height:40px}
+  table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+  th,td{border-bottom:1px solid #e3e8f0;padding:5px 8px;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  th{color:#5b667a;font-weight:600}
+  tr.cur td{background:#fff8e1;font-weight:600}
+  .tablewrap{overflow-x:auto}
+  .res{margin-top:10px;font-size:14px;line-height:1.6}
+  .note{font-size:13px;color:#46536b;line-height:1.55;background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 12px}
+  .tgl{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+  .tl{font-variant-numeric:tabular-nums;font-weight:600;color:#1f4f8f;min-width:70px}
+  canvas#gr{cursor:ew-resize;touch-action:pan-y}
+  .big{font-size:15px;font-weight:700;color:#1f4f8f;margin-bottom:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Εποχές και διάρκεια ημέρας</h1>
+  <div class="grid">
+    <div class="col">
+      <canvas id="cv"></canvas>
+      <div class="panel">
+        <div class="row">
+          <button class="b primary" id="play">▶ Εκκίνηση</button>
+          <label>Κίνηση
+            <select id="motion"><option value="year">Περιφορά (ημέρες του έτους)</option><option value="hour">Περιστροφή (ώρες της ημέρας)</option></select>
+          </label>
+          <label>Ταχύτητα
+            <select id="speed"><option value="0.25">0,25×</option><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select>
+          </label>
+        </div>
+      </div>
+      <div id="status"></div>
+    </div>
+    <div class="col">
+      <div class="panel">
+        <h2>Ημερομηνία και ώρα</h2>
+        <div class="big" id="datelab"></div>
+        <div id="fdate"></div>
+        <div class="btns" id="presets"></div>
+        <div id="fhour"></div>
+      </div>
+      <div class="panel">
+        <h2>Τόπος παρατηρητή</h2>
+        <div id="flat"></div>
+        <div class="row" style="margin-top:8px">
+          <label>Τόπος <select id="place"></select></label>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Κλίση του άξονα της Γης</h2>
+        <div id="feps"></div>
+        <div class="btns"><button class="b" id="realEps">Πραγματική κλίση (23,44°)</button><button class="b" id="zeroEps">Χωρίς κλίση (0°)</button></div>
+        <div class="hint">Δοκίμασε κλίση 0° ή μεγάλη κλίση (π.χ. 60°) για να δεις πώς αλλάζουν οι εποχές.</div>
+      </div>
+      <div class="panel">
+        <h2>Εμφάνιση</h2>
+        <div class="tgl">
+          <label><input type="checkbox" id="tGrid" checked> Παράλληλοι και μεσημβρινοί</label>
+          <label><input type="checkbox" id="tCmp" checked> Σύγκριση με άλλα πλάτη στα γραφήματα</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:12px">
+    <h2>Γραφήματα για το επιλεγμένο πλάτος (σύρε πάνω τους για να αλλάξεις ημερομηνία)</h2>
+    <canvas id="gr"></canvas>
+  </div>
+  <div class="panel" style="margin-top:12px">
+    <h2>Αποτελέσματα</h2>
+    <div class="tablewrap" id="tbl"></div>
+    <div class="res" id="res"></div>
+  </div>
+  <div class="note" style="margin-top:12px">Η διάρκεια της ημέρας υπολογίζεται γεωμετρικά για το κέντρο του ηλιακού δίσκου (χωρίς διάθλαση της ατμόσφαιρας), από τη σχέση συν(Η₀) = −εφφ·εφδ, όπου φ το γεωγραφικό πλάτος και δ η απόκλιση του Ήλιου (ημδ = ημε·ημλ, με ε την κλίση του άξονα και λ τη γεωκεντρική εκλειπτική μήκος του Ήλιου). Οι ώρες ανατολής και δύσης είναι ηλιακές (το μεσημέρι είναι στις 12:00). Η τροχιά της Γης έχει μικρή εκκεντρότητα (0,0167): η πραγματική απόσταση Γης–Ήλιου χρησιμοποιείται στον υπολογισμό της ακτινοβολίας, αλλά στο σχήμα η τροχιά δεν είναι υπό κλίμακα. Η ημερήσια ακτινοβολία είναι η μέση ισχύς στην κορυφή της ατμόσφαιρας. Στην τροχιά, ο άξονας της Γης διατηρεί σταθερή κατεύθυνση στον χώρο, και αυτό (όχι η απόσταση από τον Ήλιο) προκαλεί τις εποχές: το περιήλιο είναι στις αρχές Ιανουαρίου, δηλαδή χειμώνα στο Βόρειο ημισφαίριο.</div>
+</div>
+
+<script>
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const dpr = window.devicePixelRatio || 1;
+const CW = 960, CH = 400, GH = 3 * 142 + 14;
+const cv = $('cv'), gr = $('gr');
+const g = cv.getContext('2d'), gg = gr.getContext('2d');
+function setSize(c, ctx, w, h) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+setSize(cv, g, CW, CH); setSize(gr, gg, CW, GH);
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const RAD = Math.PI / 180, DEG = 180 / Math.PI;
+const fx = (x, d) => { if (Math.abs(x) < 0.5 * Math.pow(10, -d)) x = 0; return (x < 0 ? '−' : '') + Math.abs(x).toFixed(d).replace('.', ','); };
+function num(x, sig) {
+  sig = sig || 3; if (!isFinite(x)) return '∞'; if (x === 0) return '0';
+  let s = Math.abs(x).toPrecision(sig);
+  if (s.indexOf('e') >= 0) s = String(Number(s)); else if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return (x < 0 ? '−' : '') + s.replace('.', ',');
+}
+function niceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(x))), m = x / p; return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p; }
+function h(tag, attrs) {
+  const el = document.createElement(tag);
+  if (attrs) for (const k in attrs) { if (k === 'class') el.className = attrs[k]; else if (k.slice(0, 2) === 'on') el[k] = attrs[k]; else el.setAttribute(k, attrs[k]); }
+  for (let i = 2; i < arguments.length; i++) { const c = arguments[i]; if (c === null || c === undefined) continue; el.append(c.nodeType ? c : document.createTextNode(c)); }
+  return el;
+}
+const hm = hours => { let m = Math.round(hours * 60); const hh = Math.floor(m / 60), mm = m % 60; return hh + ' h ' + (mm < 10 ? '0' : '') + mm + ' min'; };
+const clock = hours => { let m = Math.round(hours * 60) % 1440; if (m < 0) m += 1440; const hh = Math.floor(m / 60), mm = m % 60; return (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm; };
+
+/* ---------- ημερολόγιο ---------- */
+const MD = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+const MG = ['Ιανουαρίου', 'Φεβρουαρίου', 'Μαρτίου', 'Απριλίου', 'Μαΐου', 'Ιουνίου', 'Ιουλίου', 'Αυγούστου', 'Σεπτεμβρίου', 'Οκτωβρίου', 'Νοεμβρίου', 'Δεκεμβρίου'];
+const MS = ['Ιαν', 'Φεβ', 'Μαρ', 'Απρ', 'Μάι', 'Ιουν', 'Ιουλ', 'Αυγ', 'Σεπ', 'Οκτ', 'Νοε', 'Δεκ'];
+const MSTART = []; { let c = 0; MD.forEach(d => { MSTART.push(c); c += d; }); }
+function dateStr(t) {
+  let d = clamp(Math.floor(t + 1e-9), 0, 364), m = 0;
+  while (m < 11 && d >= MSTART[m + 1]) m++;
+  return (d - MSTART[m] + 1) + ' ' + MG[m];
+}
+
+/* ---------- αστρονομία ---------- */
+const E_ORB = 0.01671, S0 = 1361;
+function sunPos(t) {
+  const M = 2 * Math.PI * (t - 2.7) / 365.2564;
+  const nu = M + 2 * E_ORB * Math.sin(M) + 1.25 * E_ORB * E_ORB * Math.sin(2 * M);
+  let lam = nu * DEG + 283.3; lam = ((lam % 360) + 360) % 360;
+  return { lam: lam, nu: nu, r: (1 - E_ORB * E_ORB) / (1 + E_ORB * Math.cos(nu)) };
+}
+function calc(t, lat, eps) {
+  const sp = sunPos(t), dec = Math.asin(Math.sin(eps * RAD) * Math.sin(sp.lam * RAD));
+  const phi = lat * RAD;
+  let H0;
+  if (Math.cos(phi) < 1e-9) { const s = Math.sign(phi) * dec; H0 = s > 1e-12 ? Math.PI : s < -1e-12 ? 0 : Math.PI / 2; }
+  else { const x = -Math.tan(phi) * Math.tan(dec); H0 = x >= 1 ? 0 : x <= -1 ? Math.PI : Math.acos(x); }
+  const dayH = 2 * H0 * 12 / Math.PI;
+  const alt = 90 - Math.abs(lat - dec * DEG);
+  const Q = S0 / Math.PI / (sp.r * sp.r) * (H0 * Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.sin(H0));
+  return { lam: sp.lam, nu: sp.nu, r: sp.r, dec: dec, decDeg: dec * DEG, H0: H0, dayH: dayH, alt: alt, Q: Q, state: H0 >= Math.PI - 1e-9 ? 'day' : H0 <= 1e-9 ? 'night' : 'normal' };
+}
+function tOfLambda(target) {
+  let best = 0, bd = 1e9;
+  for (let t = 0; t < 365; t += 0.01) { let d = Math.abs(((sunPos(t).lam - target + 540) % 360) - 180); if (d < bd) { bd = d; best = t; } }
+  return best;
+}
+const KEY = [{ lam: 0, t: tOfLambda(0), s: 'εαρινή ισημερία', sh: 'εαρ. ισημερία' }, { lam: 90, t: tOfLambda(90), s: 'θερινό ηλιοστάσιο', sh: 'θερ. ηλιοστάσιο' },
+  { lam: 180, t: tOfLambda(180), s: 'φθινοπωρινή ισημερία', sh: 'φθιν. ισημερία' }, { lam: 270, t: tOfLambda(270), s: 'χειμερινό ηλιοστάσιο', sh: 'χειμ. ηλιοστάσιο' }];
+const seasonOf = lam => lam < 90 ? 'Άνοιξη' : lam < 180 ? 'Καλοκαίρι' : lam < 270 ? 'Φθινόπωρο' : 'Χειμώνας';
+const seasonS = lam => seasonOf((lam + 180) % 360);
+
+/* ---------- κατάσταση ---------- */
+const P = { t: KEY[1].t, lat: 38, eps: 23.44, hour: 12, motion: 'year', grid: true, cmp: true };
+let playing = false, A = null;
+const PLACES = [['Αθήνα (38°Β)', 38], ['Θεσσαλονίκη (40,6°Β)', 40.6], ['Ισημερινός (0°)', 0], ['Αρκτικός κύκλος (66,56°Β)', 66.56], ['Ρέικιαβικ (64,1°Β)', 64.1], ['Βόρειος πόλος (90°Β)', 90], ['Σίδνεϊ (33,9°Ν)', -33.9], ['Νότιος πόλος (90°Ν)', -90]];
+
+/* ---------- σφαίρα ---------- */
+const offs = {};
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+function renderSphere(name, R, scale, B, sv, av, lines, meridians) {
+  const Rp = R * scale, D = Math.ceil(2 * Rp) + 4;
+  let o = offs[name]; if (!o) { o = offs[name] = document.createElement('canvas'); }
+  if (o.width !== D) { o.width = D; o.height = D; }
+  const c = o.getContext('2d'), img = c.createImageData(D, D), px = img.data;
+  const r = B.r, uu = B.u, ww = B.w;
+  const L = lines.map(l => ({ s: l.s, col: l.col, a: l.a, w: l.w, pr: dot3(av, r), pu: dot3(av, uu), pw: dot3(av, ww) }));
+  const M = (meridians || []).map(m => ({ p: m.p, q: m.q, col: m.col, a: m.a, w: m.w, pr: dot3(m.p, r), pu: dot3(m.p, uu), pw: dot3(m.p, ww) }));
+  const base = [52, 124, 198], night = [9, 14, 36];
+  for (let j = 0; j < D; j++) {
+    const v = (D / 2 - (j + 0.5)) / Rp;
+    for (let i = 0; i < D; i++) {
+      let u = ((i + 0.5) - D / 2) / Rp; let vv = v;
+      let rr = u * u + vv * vv;
+      if (rr > 1 + 2 / Rp) continue;
+      let w = 0, alpha;
+      if (rr > 1) { const k = 1 / Math.sqrt(rr); u *= k; vv *= k; alpha = clamp((1 - Math.sqrt(rr)) * Rp + 0.5, 0, 1); }
+      else { w = Math.sqrt(1 - rr); alpha = clamp((1 - Math.sqrt(rr)) * Rp + 0.5, 0, 1); }
+      const nx = u * r[0] + vv * uu[0] + w * ww[0], ny = u * r[1] + vv * uu[1] + w * ww[1], nz = u * r[2] + vv * uu[2] + w * ww[2];
+      const lit = nx * sv[0] + ny * sv[1] + nz * sv[2], sa = nx * av[0] + ny * av[1] + nz * av[2];
+      const day = clamp((lit + 0.05) / 0.12, 0, 1), dl = Math.max(lit, 0);
+      let cr = base[0], cg = base[1], cb = base[2];
+      if (Math.abs(sa) > 0.985) { cr = 232; cg = 240; cb = 248; }
+      const dk = (0.5 + 0.5 * Math.pow(dl, 0.6)) * (0.88 + 0.12 * w);
+      let R_ = night[0] + (cr * dk - night[0]) * day, G_ = night[1] + (cg * dk - night[1]) * day, B_ = night[2] + (cb * dk - night[2]) * day;
+      const wf = Math.max(w, 0.06), fade = clamp((w - 0.07) / 0.18, 0, 1);
+      if (fade > 0) {
+        for (let k = 0; k < L.length; k++) {
+          const l = L[k], f = sa - l.s;
+          if (Math.abs(f) > 0.5) continue;
+          const gx = l.pr - l.pw * u / wf, gy = l.pu - l.pw * vv / wf, gp = Math.sqrt(gx * gx + gy * gy) / Rp + 1e-9;
+          const a = clamp(l.w / 2 + 0.5 - Math.abs(f) / gp, 0, 1) * l.a * fade * (0.55 + 0.45 * day);
+          if (a > 0) { R_ += (l.col[0] - R_) * a; G_ += (l.col[1] - G_) * a; B_ += (l.col[2] - B_) * a; }
+        }
+        for (let k = 0; k < M.length; k++) {
+          const m = M[k];
+          if (nx * m.q[0] + ny * m.q[1] + nz * m.q[2] <= 0) continue;
+          const f = nx * m.p[0] + ny * m.p[1] + nz * m.p[2];
+          if (Math.abs(f) > 0.5) continue;
+          const gx = m.pr - m.pw * u / wf, gy = m.pu - m.pw * vv / wf, gp = Math.sqrt(gx * gx + gy * gy) / Rp + 1e-9;
+          const a = clamp(m.w / 2 + 0.5 - Math.abs(f) / gp, 0, 1) * m.a * fade * (0.55 + 0.45 * day);
+          if (a > 0) { R_ += (m.col[0] - R_) * a; G_ += (m.col[1] - G_) * a; B_ += (m.col[2] - B_) * a; }
+        }
+      }
+      const idx = (j * D + i) * 4;
+      px[idx] = R_; px[idx + 1] = G_; px[idx + 2] = B_; px[idx + 3] = alpha * 255;
+    }
+  }
+  c.putImageData(img, 0, 0);
+  return { cv: o, size: D / scale };
+}
+function putSphere(sp, cx, cy) { g.drawImage(sp.cv, cx - sp.size / 2, cy - sp.size / 2, sp.size, sp.size); }
+
+/* ---------- σχεδίαση ---------- */
+function ctext(ctx, s, x, y, col, size, align, weight) {
+  ctx.font = (weight || 600) + ' ' + (size || 13) + 'px system-ui, Arial, sans-serif';
+  ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,.92)'; ctx.lineJoin = 'round';
+  ctx.strokeText(s, x, y); ctx.fillStyle = col; ctx.fillText(s, x, y);
+}
+function ctextD(ctx, s, x, y, col, size, align, weight) { // κείμενο πάνω σε σκούρο φόντο
+  ctx.font = (weight || 600) + ' ' + (size || 13) + 'px system-ui, Arial, sans-serif';
+  ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = col; ctx.fillText(s, x, y);
+}
+function arrow(ctx, x0, y0, x1, y1, col, w) {
+  const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy); if (L < 3) return;
+  const ang = Math.atan2(dy, dx), hl = Math.min(9, L * 0.5);
+  ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = w || 2.5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - Math.cos(ang) * hl * 0.7, y1 - Math.sin(ang) * hl * 0.7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - hl * Math.cos(ang - 0.4), y1 - hl * Math.sin(ang - 0.4)); ctx.lineTo(x1 - hl * Math.cos(ang + 0.4), y1 - hl * Math.sin(ang + 0.4)); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+const OR = { cx: 245, cy: 222, R: 112, e: 28 * RAD, re: 20 };
+const CU = { cx: 600, cy: 215, R: 96 };
+const PV = { cx: 840, cy: 215, R: 96 };
+const ORANGE = [255, 120, 40], YEL = [255, 213, 79], CYAN = [150, 222, 255], WHITE = [255, 255, 255];
+let lastKey = '';
+const cache = {};
+
+function drawScene() {
+  g.clearRect(0, 0, CW, CH);
+  g.fillStyle = '#fbfcfe'; g.fillRect(0, 0, CW, CH);
+  g.strokeStyle = '#e3e8f0'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(480.5, 8); g.lineTo(480.5, CH - 8); g.moveTo(720.5, 8); g.lineTo(720.5, CH - 8); g.stroke();
+  const scale = playing ? 1 : Math.min(dpr, 2);
+  const eps = P.eps * RAD, a = A, lamRad = a.lam * RAD;
+  const se = Math.sin(OR.e), ce = Math.cos(OR.e);
+
+  /* --- τροχιά --- */
+  ctext(g, 'Η Γη στην τροχιά της (σχηματικά)', 240, 20, '#34425a', 14, 'center', 700);
+  ctext(g, 'Εποχές για το Βόρειο ημισφαίριο', 240, 38, '#6b7488', 11, 'center', 600);
+  g.save(); g.strokeStyle = '#b8c1d1'; g.lineWidth = 1.5; g.setLineDash([5, 4]);
+  g.beginPath(); g.ellipse(OR.cx, OR.cy, OR.R, OR.R * se, 0, 0, Math.PI * 2); g.stroke(); g.restore();
+  const Lp = lamRad + Math.PI;                       // ηλιοκεντρικό μήκος της Γης
+  const orbPos = L => ({ x: OR.cx - OR.R * Math.sin(L), y: OR.cy - OR.R * Math.cos(L) * se, far: Math.cos(L) > 0 });
+  const axS = [-Math.sin(eps), Math.cos(eps) * ce];  // προβολή του άξονα στην οθόνη (δεξιά, πάνω)
+  // σταθερή κατεύθυνση άξονα και ημερομηνίες
+  const keyLab = [
+    { dx: 0, dy: 36, al: 'center' }, { dx: 24, dy: 0, al: 'left' }, { dx: 0, dy: -38, al: 'center' }, { dx: -24, dy: 0, al: 'right' }];
+  KEY.forEach((k, i) => {
+    const q = orbPos(k.lam * RAD + Math.PI);
+    g.save(); g.strokeStyle = 'rgba(80,90,110,.45)'; g.lineWidth = 1.6; g.setLineDash([3, 3]);
+    g.beginPath(); g.moveTo(q.x - axS[0] * 30, q.y + axS[1] * 30); g.lineTo(q.x + axS[0] * 30, q.y - axS[1] * 30); g.stroke(); g.restore();
+    g.fillStyle = '#7b8498'; g.beginPath(); g.arc(q.x, q.y, 3.2, 0, 6.3); g.fill();
+    const kl = keyLab[i], ty = q.y + kl.dy;
+    ctext(g, dateStr(k.t), q.x + kl.dx, ty - 7, '#4a5569', 11, kl.al, 700);
+    ctext(g, k.sh, q.x + kl.dx, ty + 6, '#7b8498', 10, kl.al, 600);
+  });
+  const drawEarth = () => {
+    const q = orbPos(Lp);
+    const B = { r: [0, -1, 0], u: [se, 0, ce], w: [-ce, 0, se] };
+    const sv = [-Math.cos(Lp), -Math.sin(Lp), 0], av = [0, Math.sin(eps), Math.cos(eps)];
+    const sp = renderSphere('orb', OR.re, Math.min(dpr, 2), B, sv, av, [{ s: 0, col: WHITE, a: 0.8, w: 1.2 }], []);
+    putSphere(sp, q.x, q.y);
+    g.save(); g.strokeStyle = '#1f2937'; g.lineWidth = 2; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(q.x - axS[0] * (OR.re + 9), q.y + axS[1] * (OR.re + 9)); g.lineTo(q.x + axS[0] * (OR.re + 14), q.y - axS[1] * (OR.re + 14)); g.stroke(); g.restore();
+    ctext(g, 'Β', q.x + axS[0] * (OR.re + 24), q.y - axS[1] * (OR.re + 24), '#1f2937', 11, 'center', 800);
+    return q;
+  };
+  const qE = orbPos(Lp);
+  if (qE.far) drawEarth();
+  // Ήλιος
+  const gl = g.createRadialGradient(OR.cx, OR.cy, 4, OR.cx, OR.cy, 46);
+  gl.addColorStop(0, 'rgba(255,214,64,1)'); gl.addColorStop(0.45, 'rgba(255,190,40,.55)'); gl.addColorStop(1, 'rgba(255,190,40,0)');
+  g.fillStyle = gl; g.beginPath(); g.arc(OR.cx, OR.cy, 46, 0, 6.3); g.fill();
+  g.fillStyle = '#ffc928'; g.beginPath(); g.arc(OR.cx, OR.cy, 20, 0, 6.3); g.fill();
+  ctext(g, 'Ήλιος', OR.cx, OR.cy + 34, '#a06a00', 11, 'center', 700);
+  if (!qE.far) drawEarth();
+  ctext(g, 'Ο άξονας δείχνει πάντα προς την ίδια κατεύθυνση', 240, CH - 14, '#6b7488', 11, 'center', 600);
+
+  /* --- Γη από το πλάι --- */
+  const phi = P.lat * RAD, lamS = -(P.hour - 12) * 15 * RAD, dec = a.dec;
+  const cd = Math.cos(dec), sd = Math.sin(dec);
+  const sB = [cd * Math.cos(lamS), cd * Math.sin(lamS), sd];
+  const zB = [0, 0, 1];
+  const lineSet = [
+    { s: 0, col: WHITE, a: 0.9, w: 1.6 },
+    { s: Math.sin(eps), col: YEL, a: 0.9, w: 1.4 }, { s: -Math.sin(eps), col: YEL, a: 0.9, w: 1.4 },
+    { s: Math.cos(eps), col: CYAN, a: 0.9, w: 1.4 }, { s: -Math.cos(eps), col: CYAN, a: 0.9, w: 1.4 },
+    { s: Math.sin(phi), col: ORANGE, a: 1, w: 2.6 }
+  ];
+  const mer = [];
+  if (P.grid) for (let k = 0; k < 12; k++) {
+    const lo = k * 30 * RAD;
+    mer.push({ p: [-Math.sin(lo), Math.cos(lo), 0], q: [Math.cos(lo), Math.sin(lo), 0], col: k === 0 ? ORANGE : WHITE, a: k === 0 ? 0.95 : 0.3, w: k === 0 ? 2 : 1 });
+  }
+  const lines = P.grid ? lineSet : [lineSet[5]];
+  // κοντινή όψη: ο Ήλιος δεξιά
+  {
+    let up = [zB[0] - sd * sB[0], zB[1] - sd * sB[1], zB[2] - sd * sB[2]]; let nu = Math.hypot(up[0], up[1], up[2]);
+    if (nu < 1e-6) { up = [-Math.sin(lamS), Math.cos(lamS), 0]; nu = 1; }
+    up = up.map(x => x / nu);
+    const r0 = sB, t0 = [r0[1] * up[2] - r0[2] * up[1], r0[2] * up[0] - r0[0] * up[2], r0[0] * up[1] - r0[1] * up[0]];
+    const ya = 35 * RAD, cy_ = Math.cos(ya), sy_ = Math.sin(ya);
+    const tw = [cy_ * t0[0] + sy_ * r0[0], cy_ * t0[1] + sy_ * r0[1], cy_ * t0[2] + sy_ * r0[2]];
+    const right = [cy_ * r0[0] - sy_ * t0[0], cy_ * r0[1] - sy_ * t0[1], cy_ * r0[2] - sy_ * t0[2]];
+    const B = { r: right, u: up, w: tw };
+    ctext(g, 'Η Γη από το πλάι', CU.cx, 20, '#34425a', 14, 'center', 700);
+    ctext(g, 'Ο Ήλιος φωτίζει από δεξιά', CU.cx, 38, '#6b7488', 11, 'center', 600);
+    const sp = renderSphere('cu', CU.R, scale, B, sB, zB, lines, mer);
+    putSphere(sp, CU.cx, CU.cy);
+    // ακτίνες
+    for (let k = -2; k <= 2; k++) arrow(g, CU.cx + CU.R + 60, CU.cy + k * 34, CU.cx + CU.R + 16, CU.cy + k * 34, '#f2b705', 2.4);
+    // άξονας
+    const axx = dot3(zB, right), axy = dot3(zB, up);
+    g.save(); g.strokeStyle = 'rgba(31,41,55,.7)'; g.lineWidth = 1.6; g.setLineDash([5, 4]);
+    g.beginPath(); g.moveTo(CU.cx - axx * CU.R * 1.22, CU.cy + axy * CU.R * 1.22); g.lineTo(CU.cx + axx * CU.R * 1.22, CU.cy - axy * CU.R * 1.22); g.stroke(); g.restore();
+    ctext(g, 'Β', CU.cx + axx * CU.R * 1.34, CU.cy - axy * CU.R * 1.34, '#1f2937', 12, 'center', 800);
+    // παρατηρητής
+    const o = [Math.cos(phi), 0, Math.sin(phi)], ou = dot3(o, right), ov = dot3(o, up), ow = dot3(o, tw);
+    if (ow > 0.04) {
+      g.fillStyle = '#ff7a28'; g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(CU.cx + ou * CU.R, CU.cy - ov * CU.R, 5.5, 0, 6.3); g.fill(); g.stroke();
+    } else ctext(g, '(ο παρατηρητής είναι στην πίσω όψη)', CU.cx, CH - 30, '#a05a1a', 10.5, 'center', 600);
+    ctext(g, 'Ο Ήλιος στο ζενίθ στο πλάτος δ = ' + fx(a.decDeg, 1) + '°', CU.cx, CH - 14, '#6b7488', 11, 'center', 600);
+  }
+  // πολική όψη
+  {
+    const south = P.lat < 0, sg = south ? -1 : 1;
+    const rt = [Math.cos(lamS), Math.sin(lamS), 0], wv = [0, 0, sg];
+    const upv = [wv[1] * rt[2] - wv[2] * rt[1], wv[2] * rt[0] - wv[0] * rt[2], wv[0] * rt[1] - wv[1] * rt[0]];
+    const B = { r: rt, u: upv, w: wv };
+    ctext(g, south ? 'Ο Νότιος πόλος από ψηλά' : 'Ο Βόρειος πόλος από ψηλά', PV.cx, 20, '#34425a', 14, 'center', 700);
+    ctext(g, 'Ο κύκλος του πλάτους σου και το φως', PV.cx, 38, '#6b7488', 11, 'center', 600);
+    const sp = renderSphere('pv', PV.R, scale, B, sB, zB, lines, mer);
+    putSphere(sp, PV.cx, PV.cy);
+    for (let k = -2; k <= 2; k++) arrow(g, PV.cx + PV.R + 60, PV.cy + k * 34, PV.cx + PV.R + 16, PV.cy + k * 34, '#f2b705', 2.4);
+    ctext(g, 'ακτίνες', PV.cx + PV.R + 40, PV.cy - 84, '#a06a00', 10, 'center', 700);
+    // κύκλος πλάτους
+    const rc = PV.R * Math.cos(phi);
+    const H0 = a.H0;
+    g.save(); g.lineWidth = 4.5; g.lineCap = 'butt';
+    if (rc > 1.5) {
+      if (a.state === 'day') { g.strokeStyle = '#ffd54a'; g.beginPath(); g.arc(PV.cx, PV.cy, rc, 0, 6.2832); g.stroke(); }
+      else if (a.state === 'night') { g.strokeStyle = '#2b3a78'; g.beginPath(); g.arc(PV.cx, PV.cy, rc, 0, 6.2832); g.stroke(); }
+      else {
+        g.strokeStyle = '#ffd54a'; g.beginPath(); g.arc(PV.cx, PV.cy, rc, -H0, H0); g.stroke();
+        g.strokeStyle = '#2b3a78'; g.beginPath(); g.arc(PV.cx, PV.cy, rc, H0, 2 * Math.PI - H0); g.stroke();
+        [-1, 1].forEach(sn => { const ang = -sg * sn * H0 * -1; const th = -(sg * sn * H0); g.fillStyle = '#fff'; g.strokeStyle = '#555'; g.lineWidth = 1.5; g.beginPath(); g.arc(PV.cx + rc * Math.cos(th), PV.cy + rc * Math.sin(th), 3.6, 0, 6.3); g.fill(); g.stroke(); });
+        const th1 = -(sg * -1 * H0), th2 = -(sg * 1 * H0);
+        ctext(g, 'ανατολή', PV.cx + (rc + 14) * Math.cos(th1) * 1, PV.cy + (rc + 14) * Math.sin(th1), '#555', 10, Math.cos(th1) > 0 ? 'left' : 'right', 700);
+        ctext(g, 'δύση', PV.cx + (rc + 14) * Math.cos(th2), PV.cy + (rc + 14) * Math.sin(th2), '#555', 10, Math.cos(th2) > 0 ? 'left' : 'right', 700);
+      }
+    }
+    g.restore();
+    // παρατηρητής
+    const Hobs = (P.hour - 12) * 15 * RAD, th = -(sg * Hobs);
+    const ox = PV.cx + rc * Math.cos(th), oy = PV.cy + rc * Math.sin(th);
+    g.fillStyle = '#ff7a28'; g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(ox, oy, 6, 0, 6.3); g.fill(); g.stroke();
+    ctext(g, a.state === 'day' ? 'Μεσονύκτιος Ήλιος: 24 h φως' : a.state === 'night' ? 'Πολική νύχτα: 0 h φως' : 'Ημέρα ' + hm(a.dayH), PV.cx, CH - 14, '#6b7488', 11, 'center', 600);
+  }
+}
+
+/* ---------- γραφήματα ---------- */
+let GD = null;
+const GCOL = ['#1f6feb', '#8a94a6', '#e8890c', '#2a9d57', '#8e44ad'];
+function buildGraphData() {
+  const lats = [P.lat]; if (P.cmp) [0, 38, 60, -38].forEach(l => { if (Math.abs(l - P.lat) > 0.5) lats.push(l); });
+  const series = lats.map((lat, i) => {
+    const d = [], al = [], q = [];
+    for (let t = 0; t <= 365; t++) { const c = calc(t, lat, P.eps); d.push(c.dayH); al.push(c.alt); q.push(c.Q); }
+    return { lat: lat, d: d, al: al, q: q, c: i === 0 ? GCOL[0] : GCOL[i], main: i === 0 };
+  });
+  GD = { series: series };
+}
+const GL = 84, GR = CW - 16;
+function valAtD(arr, t) { const i = clamp(Math.floor(t), 0, 364), w = t - i; return arr[i] + (arr[i + 1] - arr[i]) * w; }
+function drawGraphs() {
+  const ctx = gg; ctx.clearRect(0, 0, CW, GH);
+  const pw = GR - GL, T = 365;
+  const panels = [
+    { title: 'Διάρκεια ημέρας', unit: 'h', key: 'd', fixed: [0, 24] },
+    { title: 'Ύψος Ήλιου το μεσημέρι', unit: '°', key: 'al', fixed: null },
+    { title: 'Μέση ημερήσια ηλιακή ακτινοβολία', unit: 'W/m²', key: 'q', fixed: null }
+  ];
+  panels.forEach((p, pi) => {
+    const top = 8 + pi * 142, pt = top + 24, pb = top + 112, ph = pb - pt;
+    let lo = 0, hi = 0;
+    if (p.fixed) { lo = p.fixed[0]; hi = p.fixed[1]; }
+    else GD.series.forEach(s => s[p.key].forEach(v => { if (v < lo) lo = v; if (v > hi) hi = v; }));
+    if (!p.fixed) { if (hi - lo < 1e-9) hi = lo + 1; const sp = hi - lo; hi += 0.06 * sp; if (lo < 0) lo -= 0.06 * sp; }
+    const Y = v => pb - (v - lo) / (hi - lo) * ph, Xp = t => GL + t / T * pw;
+    ctx.fillStyle = '#fbfcfe'; ctx.fillRect(GL, pt, pw, ph); ctx.strokeStyle = '#d5dbe5'; ctx.lineWidth = 1; ctx.strokeRect(GL + 0.5, pt + 0.5, pw, ph);
+    const step = p.fixed ? 6 : niceStep((hi - lo) / 4), first = Math.ceil(lo / step - 1e-9) * step;
+    ctx.font = '600 11px system-ui, Arial'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (let v = first; v <= hi + 1e-9; v += step) {
+      const y = Y(v), z = Math.abs(v) < step * 1e-6;
+      ctx.strokeStyle = z ? '#8b97ab' : '#e6eaf1'; ctx.lineWidth = z ? 1.4 : 1; ctx.beginPath(); ctx.moveTo(GL, y); ctx.lineTo(GR, y); ctx.stroke();
+      ctx.fillStyle = '#5b667a'; ctx.fillText(z ? '0' : num(v, 4), GL - 6, y);
+    }
+    // μήνες
+    ctx.textAlign = 'center';
+    for (let m = 0; m < 12; m++) {
+      const x = Xp(MSTART[m]); ctx.strokeStyle = '#eef1f6'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, pt); ctx.lineTo(x, pb); ctx.stroke();
+      ctx.fillStyle = '#5b667a'; ctx.fillText(MS[m], Xp(MSTART[m] + MD[m] / 2), pb + 11);
+    }
+    // ισημερίες / ηλιοστάσια
+    KEY.forEach(k => { const x = Xp(k.t); ctx.save(); ctx.strokeStyle = '#c9a74a'; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(x, pt); ctx.lineTo(x, pb); ctx.stroke(); ctx.restore(); if (pi === 0) { ctx.font = '600 10px system-ui, Arial'; ctx.fillStyle = '#9a7b1f'; ctx.textAlign = x > GR - 60 ? 'right' : 'center'; ctx.fillText(k.sh, x > GR - 60 ? GR - 4 : x, pt + 8); ctx.textAlign = 'center'; } });
+    // καμπύλες
+    GD.series.slice().reverse().forEach(s => {
+      ctx.save(); ctx.beginPath(); ctx.rect(GL, pt, pw, ph); ctx.clip();
+      ctx.strokeStyle = s.c; ctx.lineWidth = s.main ? 2.8 : 1.6; ctx.globalAlpha = s.main ? 1 : 0.85; ctx.lineJoin = 'round'; ctx.beginPath();
+      s[p.key].forEach((v, i) => { const x = Xp(i), y = Y(v); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+      ctx.stroke(); ctx.restore();
+    });
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.font = '700 12px system-ui, Arial'; ctx.fillStyle = '#34425a';
+    const ttl = p.title + ' (' + p.unit + ')'; ctx.fillText(ttl, GL, top + 9);
+    let lx = GL + ctx.measureText(ttl).width + 22;
+    GD.series.forEach(s => {
+      const v = valAtD(s[p.key], P.t);
+      const txt = (s.main ? 'φ = ' : '') + fx(s.lat, s.lat % 1 ? 1 : 0) + '°: ' + (p.key === 'd' ? hm(v) : fx(v, p.key === 'q' ? 0 : 1));
+      ctx.fillStyle = s.c; ctx.fillRect(lx, top + 7, 14, 4); ctx.font = (s.main ? '700 ' : '600 ') + '12px system-ui, Arial'; ctx.fillText(txt, lx + 19, top + 9);
+      lx += 19 + ctx.measureText(txt).width + 16;
+    });
+    const xc = Xp(clamp(P.t, 0, T)); ctx.strokeStyle = '#334'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(xc, pt); ctx.lineTo(xc, pb); ctx.stroke();
+    GD.series.forEach(s => { const y = Y(valAtD(s[p.key], P.t)); ctx.fillStyle = s.c; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(xc, y, s.main ? 4.5 : 3.2, 0, 6.3); ctx.fill(); ctx.stroke(); });
+  });
+}
+
+/* ---------- κείμενα και πίνακες ---------- */
+function renderResults() {
+  const a = A, s = a.state;
+  const rise = 12 - a.H0 * 12 / Math.PI, set = 12 + a.H0 * 12 / Math.PI;
+  const rows = [
+    ['Ημερομηνία', dateStr(P.t)],
+    ['Εποχή (Βόρειο / Νότιο ημισφαίριο)', seasonOf(a.lam) + ' / ' + seasonS(a.lam)],
+    ['Απόκλιση του Ήλιου δ', fx(a.decDeg, 2) + '°'],
+    ['Διάρκεια ημέρας', s === 'day' ? '24 h (μεσονύκτιος Ήλιος)' : s === 'night' ? '0 h (πολική νύχτα)' : hm(a.dayH)],
+    ['Ανατολή / δύση (ηλιακή ώρα)', s === 'normal' ? clock(rise) + ' / ' + clock(set) : '—'],
+    ['Ύψος Ήλιου το μεσημέρι', fx(a.alt, 1) + '°'],
+    ['Μέση ημερήσια ακτινοβολία', fx(a.Q, 0) + ' W/m²'],
+    ['Απόσταση Γης–Ήλιου', fx(a.r, 4) + ' AU']
+  ];
+  let t = '<table><thead><tr><th>Τώρα (φ = ' + fx(P.lat, P.lat % 1 ? 1 : 0) + '°, ε = ' + fx(P.eps, 1) + '°)</th><th>Τιμή</th></tr></thead><tbody>' + rows.map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table>';
+  t += '<table style="margin-top:12px"><thead><tr><th>Χαρακτηριστικές ημερομηνίες</th><th>δ</th><th>Διάρκεια ημέρας</th><th>Ύψος Ήλιου (μεσημέρι)</th><th>Ακτινοβολία</th></tr></thead><tbody>';
+  KEY.forEach(k => { const c = calc(k.t, P.lat, P.eps); const near = Math.abs(P.t - k.t) < 1.5; t += '<tr' + (near ? ' class="cur"' : '') + '><td>' + dateStr(k.t) + ' · ' + k.s + '</td><td>' + fx(c.decDeg, 1) + '°</td><td>' + (c.state === 'day' ? '24 h' : c.state === 'night' ? '0 h' : hm(c.dayH)) + '</td><td>' + fx(c.alt, 1) + '°</td><td>' + fx(c.Q, 0) + ' W/m²</td></tr>'; });
+  t += '</tbody></table>';
+  $('tbl').innerHTML = t;
+  const mx = GD.series[0].d.reduce((m, v) => Math.max(m, v), 0), mn = GD.series[0].d.reduce((m, v) => Math.min(m, v), 24);
+  $('res').innerHTML = 'Στο πλάτος φ = ' + fx(P.lat, P.lat % 1 ? 1 : 0) + '° η διάρκεια της ημέρας κυμαίνεται από ' + hm(mn) + ' έως ' + hm(mx) + ' μέσα στο έτος (διαφορά ' + hm(mx - mn) + ').';
+}
+function renderStatus() {
+  const a = A, d = dateStr(P.t); let s = '';
+  if (P.eps < 0.05) s = 'Με κλίση άξονα 0° ο Ήλιος μένει πάντα πάνω από τον ισημερινό (δ = 0), οπότε σε κάθε τόπο η ημέρα διαρκεί 12 h όλο τον χρόνο και δεν υπάρχουν εποχές.';
+  else {
+    s = 'Στις ' + d + ' ο Ήλιος βρίσκεται στο ζενίθ στο πλάτος δ = ' + fx(a.decDeg, 1) + '°. ';
+    if (Math.abs(a.decDeg) < 0.6) s += 'Είναι ισημερία: ο Ήλιος είναι πάνω από τον ισημερινό και η ημέρα είναι ίση με τη νύχτα (12 h) παντού. ';
+    else if (a.decDeg > 0) s += 'Το Βόρειο ημισφαίριο γέρνει προς τον Ήλιο: εκεί οι ακτίνες πέφτουν πιο κάθετα και η ημέρα είναι μεγαλύτερη (καλοκαίρι), ενώ στο Νότιο συμβαίνει το αντίθετο. ';
+    else s += 'Το Νότιο ημισφαίριο γέρνει προς τον Ήλιο: εκεί οι ακτίνες πέφτουν πιο κάθετα και η ημέρα είναι μεγαλύτερη (καλοκαίρι), ενώ στο Βόρειο συμβαίνει το αντίθετο. ';
+    if (a.state === 'day') s += 'Στο επιλεγμένο πλάτος ο Ήλιος δεν δύει (μεσονύκτιος Ήλιος). ';
+    else if (a.state === 'night') s += 'Στο επιλεγμένο πλάτος ο Ήλιος δεν ανατέλλει (πολική νύχτα). ';
+    else if (Math.abs(a.decDeg) >= 0.6) s += 'Στο φ = ' + fx(P.lat, P.lat % 1 ? 1 : 0) + '° η ημέρα διαρκεί ' + hm(a.dayH) + '.';
+  }
+  $('status').textContent = s;
+  $('datelab').textContent = dateStr(P.t) + (P.motion === 'hour' || true ? ' · ώρα ' + clock(P.hour) : '');
+}
+
+/* ---------- χειριστήρια ---------- */
+const fields = {};
+function numField(key, label, min, max, step, unit, dec, host, onset) {
+  const r = h('input', { type: 'range', min: min, max: max, step: step }), n = h('input', { type: 'number', min: min, max: max, step: step });
+  const set = v => { v = Number(v); if (!isFinite(v)) v = P[key]; v = clamp(v, +min, +max); P[key] = v; r.value = v; if (document.activeElement !== n) n.value = v.toFixed(dec); onset(key); };
+  r.oninput = () => set(r.value); n.onchange = () => { set(n.value); n.value = P[key].toFixed(dec); };
+  r.value = P[key]; n.value = Number(P[key]).toFixed(dec);
+  fields[key] = { r: r, n: n, dec: dec };
+  host.append(h('div', { class: 'nf' }, h('span', { class: 'nl' }, label), r, h('span', null, n, ' ', unit)));
+}
+function syncFields() { for (const k in fields) { const f = fields[k]; f.r.value = P[k]; if (document.activeElement !== f.n) f.n.value = Number(P[k]).toFixed(f.dec); } }
+function refresh(full) {
+  A = calc(P.t, P.lat, P.eps);
+  if (full) buildGraphData();
+  renderStatus(); renderResults();
+}
+numField('t', 'Ημέρα του έτους', 0, 364, 1, '', 0, $('fdate'), () => { playing = false; updatePlayUI(); refresh(false); });
+numField('hour', 'Ώρα (ηλιακή)', 0, 24, 0.05, 'h', 2, $('fhour'), () => { refresh(false); });
+numField('lat', 'Γεωγραφικό πλάτος φ', -90, 90, 0.5, '°', 1, $('flat'), k => { syncPlace(); refresh(true); });
+numField('eps', 'Κλίση ε', 0, 90, 0.1, '°', 1, $('feps'), () => refresh(true));
+KEY.forEach(k => $('presets').append(h('button', { class: 'b', onclick: () => { P.t = k.t; playing = false; syncFields(); updatePlayUI(); refresh(false); } }, k.sh)));
+PLACES.forEach((p, i) => $('place').append(h('option', { value: i }, p[0])));
+$('place').append(h('option', { value: -1 }, 'Άλλο (από το slider)'));
+function syncPlace() { const i = PLACES.findIndex(p => Math.abs(p[1] - P.lat) < 1e-6); $('place').value = i; }
+$('place').onchange = () => { const i = +$('place').value; if (i >= 0) { P.lat = PLACES[i][1]; syncFields(); refresh(true); } };
+$('realEps').onclick = () => { P.eps = 23.44; syncFields(); refresh(true); };
+$('zeroEps').onclick = () => { P.eps = 0; syncFields(); refresh(true); };
+$('tGrid').onchange = () => { P.grid = $('tGrid').checked; };
+$('tCmp').onchange = () => { P.cmp = $('tCmp').checked; refresh(true); };
+$('motion').onchange = () => { P.motion = $('motion').value; };
+function updatePlayUI() { $('play').textContent = playing ? '⏸ Παύση' : '▶ Εκκίνηση'; }
+$('play').onclick = () => { playing = !playing; updatePlayUI(); };
+function scrub(ev) { const r = gr.getBoundingClientRect(), x = (ev.clientX - r.left) * CW / r.width; P.t = clamp((x - GL) / (GR - GL), 0, 1) * 364.99; playing = false; updatePlayUI(); syncFields(); refresh(false); }
+let dragging = false;
+gr.addEventListener('pointerdown', ev => { dragging = true; try { gr.setPointerCapture(ev.pointerId); } catch (e) {} scrub(ev); });
+gr.addEventListener('pointermove', ev => { if (dragging) scrub(ev); });
+const endDrag = () => { dragging = false; };
+gr.addEventListener('pointerup', endDrag); gr.addEventListener('pointercancel', endDrag);
+
+/* ---------- βρόχος ---------- */
+let last = performance.now(), dirtyKey = '';
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (playing) {
+    const sp = +$('speed').value;
+    if (P.motion === 'year') { P.t += dt * 18.3 * sp; if (P.t >= 365) P.t -= 365; }
+    else { P.hour += dt * 2 * sp; if (P.hour >= 24) P.hour -= 24; }
+    A = calc(P.t, P.lat, P.eps); syncFields(); renderStatus(); renderResults();
+  }
+  const key = [P.t.toFixed(3), P.hour.toFixed(3), P.lat, P.eps, P.grid, playing].join('|');
+  if (key !== dirtyKey) { dirtyKey = key; drawScene(); }
+  drawGraphs();
+  requestAnimationFrame(frame);
+}
+syncPlace(); refresh(true);
+window.__k = { P: P, calc: calc, KEY: KEY, get A() { return A; }, refresh: refresh, syncFields: syncFields, sunPos: sunPos };
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
