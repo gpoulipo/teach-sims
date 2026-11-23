@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Εκκρεμές και χρονόμετρο</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:system-ui,"Segoe UI",Roboto,Arial,sans-serif;margin:0;background:#f4f6f9;color:#1d2433}
+  .wrap{max-width:1400px;margin:0 auto;padding:16px}
+  h1{font-size:20px;margin:0 0 10px}
+  canvas{width:100%;height:auto;background:#fff;border:1px solid #d5dbe5;border-radius:10px;display:block}
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:12px;align-items:start}
+  .col{min-width:0}
+  .col > * + *{margin-top:10px}
+  @media (max-width:1000px){.grid{grid-template-columns:minmax(0,1fr)}}
+  .panel{background:#fff;border:1px solid #d5dbe5;border-radius:10px;padding:10px 12px}
+  .panel h2{font-size:14px;margin:0 0 8px;color:#34425a}
+  .row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+  .row + .row{margin-top:8px}
+  label{font-size:14px;display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 8px;max-width:100%}
+  select{font:inherit;font-size:14px;padding:5px 8px;border-radius:6px;border:1px solid #9aa6ba;background:#fff;max-width:100%;min-width:0}
+  button.b{font:inherit;font-size:14px;padding:7px 14px;border-radius:8px;border:1px solid #9aa6ba;background:#f0f3f8;cursor:pointer}
+  button.b:hover{background:#e3e9f3}
+  button.b:disabled{opacity:.5;cursor:default}
+  button.primary{background:#2b6cb0;border-color:#2b6cb0;color:#fff}
+  button.primary:hover{background:#245a93}
+  button.green{background:#2a9d57;border-color:#2a9d57;color:#fff}
+  button.green:hover{background:#228048}
+  button.red{background:#d62839;border-color:#d62839;color:#fff}
+  button.red:hover{background:#b81f2f}
+  input[type=range]{min-width:0}
+  .nf{display:grid;grid-template-columns:112px minmax(0,1fr) 84px;gap:6px 8px;align-items:center;font-size:13px}
+  .nf + .nf{margin-top:6px}
+  .nf .nl{color:#34425a}
+  .nf input[type=number]{font:inherit;font-size:13px;width:100%;padding:4px 6px;border:1px solid #9aa6ba;border-radius:6px;background:#fff}
+  input.nn{font:inherit;font-size:14px;width:64px;padding:4px 6px;border:1px solid #9aa6ba;border-radius:6px;background:#fff}
+  .hint{font-size:12px;color:#5b667a;margin-top:6px;line-height:1.45}
+  #status{font-size:14px;color:#2f3c55;line-height:1.5;background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 12px;min-height:40px}
+  #status .warn{color:#a02d22;font-weight:600}
+  .sw{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+  .disp{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;font-size:38px;font-weight:700;letter-spacing:1px;background:#10161f;color:#7CFC9A;border-radius:10px;padding:6px 16px;min-width:210px;text-align:center}
+  .disp.run{color:#ffd84a}
+  .cnt{font-size:14px;color:#34425a;line-height:1.5}
+  .cnt b{font-size:22px;color:#1f4f8f}
+  table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+  th,td{border-bottom:1px solid #e3e8f0;padding:5px 8px;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  th{color:#5b667a;font-weight:600}
+  .tablewrap{overflow-x:auto}
+  .res{margin-top:10px;font-size:14px;line-height:1.6}
+  .note{font-size:13px;color:#46536b;line-height:1.55;background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 12px}
+  .tgl{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+  canvas#cv{cursor:default;touch-action:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Εκκρεμές και χρονόμετρο</h1>
+  <div class="grid">
+    <div class="col">
+      <canvas id="cv"></canvas>
+      <div class="panel">
+        <div class="row">
+          <button class="b primary" id="release">▶ Άφεση εκκρεμούς</button>
+          <button class="b" id="reset">⏮ Επαναφορά</button>
+          <label>Ταχύτητα προσομοίωσης
+            <select id="speed"><option value="0.1">0,1×</option><option value="0.25">0,25×</option><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select>
+          </label>
+        </div>
+        <div class="hint">Μπορείς να σύρεις το σφαιρίδιο με το ποντίκι (ή το δάχτυλο) πριν την άφεση για να αλλάξεις το πλάτος.</div>
+      </div>
+      <div class="panel">
+        <h2>Χρονόμετρο</h2>
+        <div class="sw">
+          <div class="disp" id="disp">00:00.00</div>
+          <div class="cnt">Ταλαντώσεις που μετρήθηκαν<br><b id="cnt">0</b></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="b green" id="swgo">▶ Έναρξη χρονομέτρου</button>
+          <button class="b" id="swzero">0 Μηδενισμός</button>
+          <button class="b" id="swrec">＋ Καταγραφή μέτρησης</button>
+        </div>
+        <div class="row">
+          <label><input type="checkbox" id="auto"> Αυτόματη στάση μετά από</label>
+          <input class="nn" type="number" id="autoN" min="1" max="50" step="1" value="10">
+          <span style="font-size:14px">ταλαντώσεις</span>
+        </div>
+        <div class="hint">Πλήρης ταλάντωση = επιστροφή του σφαιριδίου στο ίδιο ακραίο σημείο από όπου ξεκίνησε η μέτρηση. Συντομία: πλήκτρο διαστήματος = έναρξη/στάση χρονομέτρου.</div>
+      </div>
+      <div id="status"></div>
+    </div>
+    <div class="col">
+      <div class="panel">
+        <h2>Εκκρεμές</h2>
+        <div id="fpend"></div>
+        <div class="hint">Η μέτρηση του χρονομέτρου γίνεται σε χρόνο προσομοίωσης, ανεξάρτητα από την ταχύτητα αναπαραγωγής.</div>
+      </div>
+      <div class="panel">
+        <h2>Περιβάλλον</h2>
+        <div class="row"><label>Βαρύτητα <select id="planet"><option value="9.81">Γη (9,81 m/s²)</option><option value="1.62">Σελήνη (1,62 m/s²)</option><option value="3.71">Άρης (3,71 m/s²)</option><option value="24.79">Δίας (24,79 m/s²)</option></select></label></div>
+        <div id="fenv" style="margin-top:8px"></div>
+        <div class="hint">Με αντίσταση αέρα b &gt; 0 το πλάτος μειώνεται και το βάρος του σφαιριδίου παίζει ρόλο στην απόσβεση. Χωρίς αντίσταση η περίοδος δεν εξαρτάται από τη μάζα.</div>
+      </div>
+      <div class="panel">
+        <h2>Εμφάνιση</h2>
+        <div class="tgl">
+          <label><input type="checkbox" id="tTheory"> Θεωρητικές τιμές (για επαλήθευση)</label>
+          <label><input type="checkbox" id="tProt" checked> Μοιρογνωμόνιο</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:12px">
+    <h2>Γραφήματα: γωνία–χρόνος και T²–L από τις μετρήσεις σου</h2>
+    <canvas id="gr"></canvas>
+  </div>
+  <div class="panel" style="margin-top:12px">
+    <h2>Πίνακας μετρήσεων</h2>
+    <div class="tablewrap" id="tbl"></div>
+    <div class="row" style="margin-top:8px">
+      <button class="b" id="delLast">Διαγραφή τελευταίας</button>
+      <button class="b" id="clearAll">Καθαρισμός πίνακα</button>
+    </div>
+    <div class="res" id="res"></div>
+  </div>
+  <div class="note" style="margin-top:12px">Η κίνηση λύνεται αριθμητικά από την πλήρη εξίσωση θ″ = −(g/L)·ημθ − (b/m)·θ′ (μέθοδος Runge–Kutta 4ης τάξης), άρα ισχύει και για μεγάλα πλάτη. Για μικρές γωνίες η περίοδος είναι T₀ = 2π·√(L/g), ενώ για πλάτος θ₀ η ακριβής περίοδος είναι T = T₀ / AGM(1, συν(θ₀/2)), δηλαδή μεγαλώνει με το πλάτος (π.χ. κατά 18 % στις 90°). Το σφαιρίδιο θεωρείται υλικό σημείο και το νήμα αβαρές και μη εκτατό. Προτεινόμενη μέτρηση: μέτρα το χρόνο για 10 ταλαντώσεις και διαίρεσέ τον με 10, ώστε να μειωθεί το σφάλμα του χρονομέτρου.</div>
+</div>
+
+<script>
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const dpr = window.devicePixelRatio || 1;
+const CW = 960, CH = 430, GH = 300;
+const cv = $('cv'), gr = $('gr');
+const g = cv.getContext('2d'), gg = gr.getContext('2d');
+function setSize(c, ctx, w, h) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+setSize(cv, g, CW, CH); setSize(gr, gg, CW, GH);
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const RAD = Math.PI / 180;
+const fx = (x, d) => { if (Math.abs(x) < 0.5 * Math.pow(10, -d)) x = 0; return (x < 0 ? '−' : '') + Math.abs(x).toFixed(d).replace('.', ','); };
+function num(x, sig) {
+  sig = sig || 3; if (!isFinite(x)) return '∞'; if (x === 0) return '0';
+  let s = Math.abs(x).toPrecision(sig);
+  if (s.indexOf('e') >= 0) s = String(Number(s)); else if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return (x < 0 ? '−' : '') + s.replace('.', ',');
+}
+function niceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(x))), m = x / p; return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p; }
+function h(tag, attrs) {
+  const el = document.createElement(tag);
+  if (attrs) for (const k in attrs) { if (k === 'class') el.className = attrs[k]; else if (k.slice(0, 2) === 'on') el[k] = attrs[k]; else el.setAttribute(k, attrs[k]); }
+  for (let i = 2; i < arguments.length; i++) { const c = arguments[i]; if (c === null || c === undefined) continue; el.append(c.nodeType ? c : document.createTextNode(c)); }
+  return el;
+}
+function ctext(ctx, s, x, y, col, size, align, weight) {
+  ctx.font = (weight || 600) + ' ' + (size || 13) + 'px system-ui, Arial, sans-serif';
+  ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,.92)'; ctx.lineJoin = 'round';
+  ctx.strokeText(s, x, y); ctx.fillStyle = col; ctx.fillText(s, x, y);
+}
+
+/* ---------- παράμετροι ---------- */
+const P = { L: 1.0, amp: 20, side: 1, m: 0.5, g: 9.81, b: 0 };
+
+/* ---------- θεωρία ---------- */
+function agm(a, b) { for (let i = 0; i < 30; i++) { const an = (a + b) / 2, bn = Math.sqrt(a * b); a = an; b = bn; } return a; }
+const T0 = () => 2 * Math.PI * Math.sqrt(P.L / P.g);
+const Texact = () => T0() / agm(1, Math.cos(P.amp * RAD / 2));
+
+/* ---------- κατάσταση προσομοίωσης ---------- */
+const S = { th: 0, om: 0, t: 0, released: false, hist: [], nextSample: 0 };
+const SW = { on: false, t: 0, n: 0, startSign: 1, marks: [], intervals: [], used: false };
+let rows = [];
+let msg = '';
+function resetSim() {
+  S.th = P.side * P.amp * RAD; S.om = 0; S.t = 0; S.released = false; S.hist = [{ t: 0, th: S.th }]; S.nextSample = 0.02;
+  swZero(); updateUI(); renderStatus();
+}
+function swZero() { SW.on = false; SW.t = 0; SW.n = 0; SW.marks = []; SW.intervals = []; SW.used = false; msg = ''; }
+function accel(th, om) { return -(P.g / P.L) * Math.sin(th) - (P.b / P.m) * om; }
+function rk4(h_) {
+  const th = S.th, om = S.om;
+  const k1t = om, k1o = accel(th, om);
+  const k2t = om + 0.5 * h_ * k1o, k2o = accel(th + 0.5 * h_ * k1t, om + 0.5 * h_ * k1o);
+  const k3t = om + 0.5 * h_ * k2o, k3o = accel(th + 0.5 * h_ * k2t, om + 0.5 * h_ * k2o);
+  const k4t = om + h_ * k3o, k4o = accel(th + h_ * k3t, om + h_ * k3o);
+  S.th = th + h_ / 6 * (k1t + 2 * k2t + 2 * k3t + k4t);
+  S.om = om + h_ / 6 * (k1o + 2 * k2o + 2 * k3o + k4o);
+}
+const HSUB = 0.002;
+function step() {
+  const omPrev = S.om;
+  rk4(HSUB); S.t += HSUB;
+  if (SW.on) {
+    SW.t += HSUB;
+    const iv = SW.intervals[SW.intervals.length - 1]; if (iv) iv.b = S.t;
+    // ακραίο σημείο: αλλαγή προσήμου της γωνιακής ταχύτητας
+    if (omPrev * S.om < 0) {
+      const tTurn = S.t - HSUB + HSUB * omPrev / (omPrev - S.om);
+      if (Math.sign(S.th) === SW.startSign) {
+        SW.n++; SW.marks.push({ t: tTurn, n: SW.n, th: S.th });
+        if ($('auto').checked && SW.n >= Math.max(1, Math.round(+$('autoN').value || 1))) {
+          SW.t -= (S.t - tTurn); SW.on = false; const iv2 = SW.intervals[SW.intervals.length - 1]; if (iv2) iv2.b = tTurn;
+          updateUI(); renderStatus();
+        }
+      }
+    }
+  }
+  if (S.t >= S.nextSample - 1e-9) { S.hist.push({ t: S.t, th: S.th }); S.nextSample += 0.02; if (S.hist.length > 6000) S.hist.shift(); }
+}
+
+/* ---------- χρονόμετρο ---------- */
+function swToggle() {
+  if (SW.on) { SW.on = false; const iv = SW.intervals[SW.intervals.length - 1]; if (iv) iv.b = S.t; }
+  else {
+    if (SW.used && SW.t > 0) { /* συνέχιση */ }
+    SW.on = true; SW.used = true;
+    if (SW.t === 0) { SW.n = 0; SW.marks = []; SW.intervals = []; SW.startSign = Math.abs(S.th) > 1e-4 ? Math.sign(S.th) : (Math.sign(S.om) || 1); }
+    SW.intervals.push({ a: S.t, b: S.t });
+  }
+  msg = ''; updateUI(); renderStatus();
+}
+function fmtSW(t) { const m = Math.floor(t / 60), s = t - m * 60; return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s.toFixed(2); }
+function updateUI() {
+  $('disp').textContent = fmtSW(SW.t); $('disp').classList.toggle('run', SW.on);
+  $('cnt').textContent = SW.n;
+  $('swgo').textContent = SW.on ? '⏹ Στάση χρονομέτρου' : (SW.t > 0 ? '▶ Συνέχεια χρονομέτρου' : '▶ Έναρξη χρονομέτρου');
+  $('swgo').className = 'b ' + (SW.on ? 'red' : 'green');
+  $('release').textContent = S.released ? '⏸ Παύση εκκρεμούς' : (S.t > 0 ? '▶ Συνέχεια εκκρεμούς' : '▶ Άφεση εκκρεμούς');
+}
+function record() {
+  if (SW.on) { msg = '<span class="warn">Σταμάτησε πρώτα το χρονόμετρο.</span>'; renderStatus(); return; }
+  if (SW.n < 1 || SW.t <= 0) { msg = '<span class="warn">Δεν έχει ολοκληρωθεί καμία πλήρης ταλάντωση στη μέτρηση.</span>'; renderStatus(); return; }
+  rows.push({ L: P.L, amp: P.amp, m: P.m, g: P.g, b: P.b, N: SW.n, t: SW.t, T: SW.t / SW.n });
+  msg = 'Καταγράφηκε η μέτρηση #' + rows.length + ': ' + SW.n + ' ταλαντώσεις σε ' + fx(SW.t, 2) + ' s → T = ' + fx(SW.t / SW.n, 3) + ' s.';
+  renderTable(); renderStatus();
+}
+
+/* ---------- σχεδίαση σκηνής ---------- */
+const PIV = { x: CW / 2, y: 50 };
+function geom() {
+  const k = 300 / Math.max(P.L, 0.5), Lp = P.L * k, r = 9 + 11 * Math.cbrt(P.m);
+  return { k: k, Lp: Lp, r: r };
+}
+function bobPos(th) { const G_ = geom(); return { x: PIV.x + G_.Lp * Math.sin(th), y: PIV.y + G_.Lp * Math.cos(th) }; }
+function drawScene() {
+  g.clearRect(0, 0, CW, CH);
+  g.fillStyle = '#fbfcfe'; g.fillRect(0, 0, CW, CH);
+  const G_ = geom();
+  // οροφή
+  g.fillStyle = '#d8d2c4'; g.fillRect(PIV.x - 120, PIV.y - 24, 240, 16);
+  g.strokeStyle = '#9d957f'; g.lineWidth = 2; g.strokeRect(PIV.x - 120, PIV.y - 24, 240, 16);
+  g.strokeStyle = '#b3ab96'; g.lineWidth = 1.2;
+  for (let x = PIV.x - 114; x < PIV.x + 118; x += 12) { g.beginPath(); g.moveTo(x, PIV.y - 24); g.lineTo(x - 7, PIV.y - 38); g.stroke(); }
+  // μοιρογνωμόνιο
+  if ($('tProt').checked) {
+    const R0 = 84;
+    g.save(); g.strokeStyle = '#c9d0de'; g.fillStyle = 'rgba(210,220,240,.18)'; g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(PIV.x, PIV.y); g.arc(PIV.x, PIV.y, R0, Math.PI / 2 - Math.PI / 2, Math.PI / 2 + Math.PI / 2); g.closePath(); g.fill(); g.stroke();
+    for (let a = -90; a <= 90; a += 5) {
+      const th = a * RAD, big = a % 10 === 0, r1 = R0 - (big ? 10 : 5);
+      g.beginPath(); g.moveTo(PIV.x + R0 * Math.sin(th), PIV.y + R0 * Math.cos(th)); g.lineTo(PIV.x + r1 * Math.sin(th), PIV.y + r1 * Math.cos(th)); g.stroke();
+      if (a % 30 === 0) { g.font = '600 10px system-ui, Arial'; g.fillStyle = '#7b8498'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(Math.abs(a) + '°', PIV.x + (R0 + 13) * Math.sin(th), PIV.y + (R0 + 13) * Math.cos(th)); }
+    }
+    g.restore();
+  }
+  // κατακόρυφη (θέση ισορροπίας)
+  g.save(); g.strokeStyle = '#aab3c5'; g.setLineDash([5, 5]); g.lineWidth = 1.3; g.beginPath(); g.moveTo(PIV.x, PIV.y); g.lineTo(PIV.x, PIV.y + G_.Lp + G_.r + 30); g.stroke();
+  // όρια πλάτους
+  g.strokeStyle = '#e8890c'; g.lineWidth = 1.3;
+  [-1, 1].forEach(sg => { const th = sg * P.amp * RAD, e = G_.Lp + G_.r + 10; g.beginPath(); g.moveTo(PIV.x, PIV.y); g.lineTo(PIV.x + e * Math.sin(th), PIV.y + e * Math.cos(th)); g.stroke(); });
+  g.restore();
+  // τόξο πλάτους
+  g.save(); g.strokeStyle = '#e8890c'; g.lineWidth = 2;
+  const ra = 54, a0 = Math.PI / 2, a1 = Math.PI / 2 - P.side * P.amp * RAD;
+  g.beginPath(); g.arc(PIV.x, PIV.y, ra, Math.min(a0, a1), Math.max(a0, a1)); g.stroke(); g.restore();
+  ctext(g, 'θ₀ = ' + fx(P.amp, 0) + '°', PIV.x + P.side * 28 * 1.0 + P.side * 18 * Math.sin(P.amp * RAD / 2), PIV.y + ra + 16, '#b25f00', 12, 'center', 700);
+  // νήμα και σφαιρίδιο
+  const b = bobPos(S.th);
+  g.strokeStyle = '#3c4658'; g.lineWidth = 2; g.beginPath(); g.moveTo(PIV.x, PIV.y); g.lineTo(b.x, b.y); g.stroke();
+  g.fillStyle = '#556'; g.beginPath(); g.arc(PIV.x, PIV.y, 4, 0, 6.3); g.fill();
+  const gd = g.createRadialGradient(b.x - G_.r * 0.35, b.y - G_.r * 0.35, G_.r * 0.1, b.x, b.y, G_.r);
+  gd.addColorStop(0, '#dbe9ff'); gd.addColorStop(1, '#2b6cb0');
+  g.fillStyle = gd; g.strokeStyle = '#1f4f8f'; g.lineWidth = 2; g.beginPath(); g.arc(b.x, b.y, G_.r, 0, 6.3); g.fill(); g.stroke();
+  ctext(g, num(P.m) + ' kg', b.x, b.y + G_.r + 13, '#1f4f8f', 11, 'center', 700);
+  // μήκος
+  const mx = (PIV.x + b.x) / 2, my = (PIV.y + b.y) / 2, ang = Math.atan2(b.y - PIV.y, b.x - PIV.x);
+  const nx = -Math.sin(ang), ny = Math.cos(ang), off = b.x >= PIV.x ? -1 : 1;
+  ctext(g, 'L = ' + fx(P.L, 2) + ' m', mx + nx * 20 * off * -1 + (b.x >= PIV.x ? 0 : 0), my + ny * 0 + 0, '#34425a', 12, 'center', 700);
+  // πληροφορίες
+  g.save(); g.textAlign = 'left';
+  ctext(g, 't = ' + fx(S.t, 2) + ' s', 14, 22, '#1f4f8f', 14, 'left', 700);
+  ctext(g, 'θ = ' + fx(S.th / RAD, 1) + '°', 14, 44, '#34425a', 13, 'left', 600);
+  const v = Math.abs(S.om) * P.L;
+  ctext(g, 'υ = ' + fx(v, 2) + ' m/s', 14, 64, '#34425a', 13, 'left', 600);
+  ctext(g, 'g = ' + fx(P.g, 2) + ' m/s²' + (P.b > 0 ? '  ·  b = ' + fx(P.b, 2) + ' kg/s' : ''), CW - 14, 22, '#6b7488', 12, 'right', 600);
+  if (!S.released && S.t === 0) ctext(g, 'Πάτησε «Άφεση εκκρεμούς»', CW - 14, 44, '#2b6cb0', 13, 'right', 700);
+  g.restore();
+  // μικρό χρονόμετρο στο καμβά
+  g.save();
+  const bx = CW - 150, by = CH - 54;
+  g.fillStyle = '#10161f'; g.beginPath(); g.roundRect ? g.roundRect(bx, by, 136, 40, 8) : g.rect(bx, by, 136, 40); g.fill();
+  g.font = '700 22px "SFMono-Regular",Consolas,monospace'; g.fillStyle = SW.on ? '#ffd84a' : '#7CFC9A'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(fmtSW(SW.t), bx + 68, by + 21);
+  g.restore();
+}
+
+/* ---------- γραφήματα ---------- */
+const HALF = 480;
+function drawGraphs() {
+  const ctx = gg; ctx.clearRect(0, 0, CW, GH);
+  /* αριστερά: θ(t) */
+  {
+    const gl = 60, gr_ = HALF - 14, pt = 30, pb = GH - 42, pw = gr_ - gl, ph = pb - pt;
+    const A = Math.max(5, P.amp) * 1.15;
+    const W = Math.max(10, Math.ceil(4 * Texact()));
+    const s0 = Math.max(0, S.t - W), s1 = s0 + W;
+    const X = t => gl + (t - s0) / W * pw, Y = a => pt + ph / 2 - a / A * ph / 2;
+    ctx.fillStyle = '#fbfcfe'; ctx.fillRect(gl, pt, pw, ph); ctx.strokeStyle = '#d5dbe5'; ctx.lineWidth = 1; ctx.strokeRect(gl + 0.5, pt + 0.5, pw, ph);
+    // ζώνες χρονομέτρου
+    SW.intervals.forEach(iv => { const a = clamp(iv.a, s0, s1), b = clamp(iv.b, s0, s1); if (b > a) { ctx.fillStyle = 'rgba(255,200,60,.22)'; ctx.fillRect(X(a), pt, X(b) - X(a), ph); } });
+    const st = niceStep(2 * A / 4); ctx.font = '600 11px system-ui, Arial'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (let v = -Math.floor(A / st) * st; v <= A + 1e-9; v += st) { const y = Y(v), z = Math.abs(v) < st * 1e-6; ctx.strokeStyle = z ? '#8b97ab' : '#e6eaf1'; ctx.lineWidth = z ? 1.4 : 1; ctx.beginPath(); ctx.moveTo(gl, y); ctx.lineTo(gr_, y); ctx.stroke(); ctx.fillStyle = '#5b667a'; ctx.fillText(z ? '0' : num(v, 3), gl - 6, y); }
+    ctx.textAlign = 'center'; const ts = niceStep(W / 6);
+    for (let t = Math.ceil(s0 / ts) * ts; t <= s1 + 1e-9; t += ts) { const x = X(t); ctx.strokeStyle = '#eef1f6'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, pt); ctx.lineTo(x, pb); ctx.stroke(); ctx.fillStyle = '#5b667a'; ctx.fillText(num(t, 3) + ' s', x, pb + 12); }
+    ctx.save(); ctx.beginPath(); ctx.rect(gl, pt, pw, ph); ctx.clip();
+    ctx.strokeStyle = '#1f6feb'; ctx.lineWidth = 2.2; ctx.lineJoin = 'round'; ctx.beginPath(); let first = true;
+    S.hist.forEach(p => { if (p.t < s0 - 0.05) return; const x = X(p.t), y = Y(p.th / RAD); if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y); });
+    ctx.stroke();
+    SW.marks.forEach(m => { if (m.t < s0 || m.t > s1) return; const x = X(m.t), y = Y(m.th / RAD); ctx.fillStyle = '#d62839'; ctx.beginPath(); ctx.arc(x, y, 4, 0, 6.3); ctx.fill(); ctx.font = '700 11px system-ui, Arial'; ctx.textAlign = 'center'; ctx.fillStyle = '#b81f2f'; ctx.fillText(m.n, x, y + (y < pt + 16 ? 14 : -10)); });
+    ctx.restore();
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.font = '700 12px system-ui, Arial'; ctx.fillStyle = '#34425a'; ctx.fillText('Γωνία θ (°) – χρόνος', gl, 14);
+    ctx.font = '600 11px system-ui, Arial'; ctx.fillStyle = '#b25f00'; ctx.fillText('■ διάστημα χρονομέτρου   ● ταλαντώσεις που μετρήθηκαν', gl, GH - 8);
+  }
+  /* δεξιά: T²–L */
+  {
+    const gl = HALF + 70, gr_ = CW - 14, pt = 30, pb = GH - 38, pw = gr_ - gl, ph = pb - pt;
+    const Lmax = 3.2; let ymax = 1; rows.forEach(r => ymax = Math.max(ymax, r.T * r.T));
+    if ($('tTheory').checked) ymax = Math.max(ymax, 4 * Math.PI * Math.PI * Lmax / P.g);
+    ymax = Math.max(ymax * 1.15, 0.5);
+    const X = L => gl + L / Lmax * pw, Y = v => pb - v / ymax * ph;
+    ctx.fillStyle = '#fbfcfe'; ctx.fillRect(gl, pt, pw, ph); ctx.strokeStyle = '#d5dbe5'; ctx.lineWidth = 1; ctx.strokeRect(gl + 0.5, pt + 0.5, pw, ph);
+    ctx.font = '600 11px system-ui, Arial'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    const st = niceStep(ymax / 4);
+    for (let v = 0; v <= ymax + 1e-9; v += st) { const y = Y(v); ctx.strokeStyle = v === 0 ? '#8b97ab' : '#e6eaf1'; ctx.beginPath(); ctx.moveTo(gl, y); ctx.lineTo(gr_, y); ctx.stroke(); ctx.fillStyle = '#5b667a'; ctx.fillText(num(v, 3), gl - 6, y); }
+    ctx.textAlign = 'center';
+    for (let L = 0; L <= Lmax + 1e-9; L += 0.5) { const x = X(L); ctx.strokeStyle = '#eef1f6'; ctx.beginPath(); ctx.moveTo(x, pt); ctx.lineTo(x, pb); ctx.stroke(); ctx.fillStyle = '#5b667a'; ctx.fillText(num(L, 2), x, pb + 12); }
+    ctx.fillStyle = '#5b667a'; ctx.fillText('L (m)', (gl + gr_) / 2, pb + 28);
+    ctx.save(); ctx.beginPath(); ctx.rect(gl, pt, pw, ph); ctx.clip();
+    if ($('tTheory').checked) { ctx.strokeStyle = '#2a9d57'; ctx.setLineDash([6, 4]); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X(0), Y(0)); ctx.lineTo(X(Lmax), Y(4 * Math.PI * Math.PI * Lmax / P.g)); ctx.stroke(); ctx.setLineDash([]); }
+    const fitRows = rows.filter(r => Math.abs(r.g - P.g) < 1e-9);
+    if (fitRows.length >= 2) { let sl = 0, ss = 0; fitRows.forEach(r => { sl += r.L * r.T * r.T; ss += r.L * r.L; }); const k = sl / ss; ctx.strokeStyle = '#d62839'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(X(0), Y(0)); ctx.lineTo(X(Lmax), Y(k * Lmax)); ctx.stroke(); }
+    rows.forEach(r => { ctx.fillStyle = '#1f6feb'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(X(r.L), Y(r.T * r.T), 5, 0, 6.3); ctx.fill(); ctx.stroke(); });
+    ctx.restore();
+    ctx.save(); ctx.translate(HALF + 18, (pt + pb) / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.font = '600 11px system-ui, Arial'; ctx.fillStyle = '#5b667a'; ctx.fillText('T² (s²)', 0, 0); ctx.restore();
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.font = '700 12px system-ui, Arial'; ctx.fillStyle = '#34425a'; ctx.fillText('T² – L (από τις μετρήσεις σου)', gl - 52, 14);
+    if (!rows.length) { ctx.textAlign = 'center'; ctx.font = '600 12px system-ui, Arial'; ctx.fillStyle = '#8a94a6'; ctx.fillText('Κατέγραψε μετρήσεις για διαφορετικά μήκη νήματος', (gl + gr_) / 2, (pt + pb) / 2); }
+  }
+  ctx.strokeStyle = '#e3e8f0'; ctx.beginPath(); ctx.moveTo(HALF + 0.5, 6); ctx.lineTo(HALF + 0.5, GH - 6); ctx.stroke();
+}
+
+/* ---------- πίνακας και αποτελέσματα ---------- */
+function renderTable() {
+  const th = $('tTheory').checked;
+  let t = '<table><thead><tr><th>#</th><th>L (m)</th><th>θ₀ (°)</th><th>m (kg)</th><th>g (m/s²)</th><th>b</th><th>N</th><th>t (s)</th><th>T = t/N (s)</th><th>T² (s²)</th>' + (th ? '<th>T θεωρ. (s)</th><th>σφάλμα</th>' : '') + '</tr></thead><tbody>';
+  if (!rows.length) t += '<tr><td colspan="' + (th ? 12 : 10) + '" style="text-align:center;color:#8a94a6">Δεν υπάρχουν μετρήσεις ακόμα</td></tr>';
+  rows.forEach((r, i) => {
+    t += '<tr><td>' + (i + 1) + '</td><td>' + fx(r.L, 2) + '</td><td>' + fx(r.amp, 0) + '</td><td>' + fx(r.m, 2) + '</td><td>' + fx(r.g, 2) + '</td><td>' + fx(r.b, 2) + '</td><td>' + r.N + '</td><td>' + fx(r.t, 2) + '</td><td>' + fx(r.T, 3) + '</td><td>' + fx(r.T * r.T, 3) + '</td>';
+    if (th) { const Te = 2 * Math.PI * Math.sqrt(r.L / r.g) / agm(1, Math.cos(r.amp * RAD / 2)); t += '<td>' + fx(Te, 3) + '</td><td>' + fx((r.T - Te) / Te * 100, 1) + ' %</td>'; }
+    t += '</tr>';
+  });
+  t += '</tbody></table>';
+  $('tbl').innerHTML = t; renderResults();
+}
+function renderResults() {
+  let html = '';
+  const fitRows = rows.filter(r => Math.abs(r.g - P.g) < 1e-9);
+  if (fitRows.length >= 2) {
+    let sl = 0, ss = 0; fitRows.forEach(r => { sl += r.L * r.T * r.T; ss += r.L * r.L; });
+    const k = sl / ss; html += 'Από τα σημεία T²–L προκύπτει κλίση T²/L = ' + fx(k, 3) + ' s²/m, άρα g = 4π²/κλίση = <b>' + fx(4 * Math.PI * Math.PI / k, 2) + ' m/s²</b> (για τις μετρήσεις με g = ' + fx(P.g, 2) + ' m/s²).<br>';
+  }
+  if ($('tTheory').checked) {
+    const T0v = T0(), Te = Texact(), vmax = Math.sqrt(2 * P.g * P.L * (1 - Math.cos(P.amp * RAD)));
+    html += '<b>Θεωρητικές τιμές για τις τρέχουσες ρυθμίσεις:</b> T₀ = 2π√(L/g) = ' + fx(T0v, 3) + ' s (μικρά πλάτη) · ακριβής περίοδος για θ₀ = ' + fx(P.amp, 0) + '°: T = ' + fx(Te, 3) + ' s (' + fx((Te / T0v - 1) * 100, 2) + ' % μεγαλύτερη) · συχνότητα f = ' + fx(1 / Te, 3) + ' Hz · μέγιστη ταχύτητα (χωρίς απόσβεση) υ = ' + fx(vmax, 2) + ' m/s.';
+  } else html += '<span style="color:#6b7488">Τσέκαρε «Θεωρητικές τιμές» για να συγκρίνεις τις μετρήσεις σου με τη θεωρία.</span>';
+  $('res').innerHTML = html;
+}
+function renderStatus() {
+  let s = msg ? msg + '<br>' : '';
+  if (P.b > 0) { const gam = P.b / (2 * P.m), w0 = Math.sqrt(P.g / P.L); if (gam >= w0) s += '<span class="warn">Η αντίσταση είναι πολύ μεγάλη: το εκκρεμές δεν ταλαντώνεται (υπεραπόσβεση).</span> '; else s += 'Με αντίσταση αέρα το πλάτος μειώνεται με τον χρόνο· η περίοδος αυξάνεται ελάχιστα. '; }
+  if (!SW.on && SW.t === 0 && !S.released) s += 'Πάτησε «Άφεση εκκρεμούς» και μετά ξεκίνα το χρονόμετρο τη στιγμή που θέλεις να αρχίσεις να μετράς. ';
+  else if (SW.on) s += 'Το χρονόμετρο μετράει. Σταμάτησέ το μετά από ακέραιο αριθμό ταλαντώσεων.';
+  else if (SW.t > 0) s += 'Χρόνος: ' + fx(SW.t, 2) + ' s για ' + SW.n + ' ταλαντώσεις' + (SW.n > 0 ? ' → T = ' + fx(SW.t / SW.n, 3) + ' s. Πάτησε «Καταγραφή μέτρησης».' : '.');
+  $('status').innerHTML = s;
+}
+
+/* ---------- χειριστήρια ---------- */
+const fields = {};
+function numField(key, label, min, max, step, unit, dec, host) {
+  const r = h('input', { type: 'range', min: min, max: max, step: step }), n = h('input', { type: 'number', min: min, max: max, step: step });
+  const set = v => { v = Number(v); if (!isFinite(v)) v = P[key]; v = clamp(v, +min, +max); P[key] = v; r.value = v; if (document.activeElement !== n) n.value = v.toFixed(dec); onParam(); };
+  r.oninput = () => set(r.value); n.onchange = () => { set(n.value); n.value = P[key].toFixed(dec); };
+  r.value = P[key]; n.value = Number(P[key]).toFixed(dec);
+  fields[key] = { r: r, n: n, dec: dec };
+  host.append(h('div', { class: 'nf' }, h('span', { class: 'nl' }, label), r, h('span', null, n, ' ', unit)));
+}
+function syncFields() { for (const k in fields) { const f = fields[k]; f.r.value = P[k]; if (document.activeElement !== f.n) f.n.value = Number(P[k]).toFixed(f.dec); } }
+function onParam() { resetSim(); renderTable(); }
+numField('L', 'Μήκος νήματος L', 0.2, 3, 0.05, 'm', 2, $('fpend'));
+numField('amp', 'Πλάτος θ₀', 1, 90, 1, '°', 0, $('fpend'));
+numField('m', 'Μάζα m', 0.05, 2, 0.05, 'kg', 2, $('fpend'));
+numField('b', 'Αντίσταση αέρα b', 0, 0.5, 0.01, 'kg/s', 2, $('fenv'));
+$('planet').onchange = () => { P.g = +$('planet').value; onParam(); };
+$('release').onclick = () => { S.released = !S.released; updateUI(); };
+$('reset').onclick = () => { resetSim(); };
+$('swgo').onclick = swToggle;
+$('swzero').onclick = () => { swZero(); updateUI(); renderStatus(); };
+$('swrec').onclick = record;
+$('delLast').onclick = () => { rows.pop(); renderTable(); };
+$('clearAll').onclick = () => { rows = []; renderTable(); };
+$('tTheory').onchange = () => renderTable();
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !/INPUT|SELECT|TEXTAREA|BUTTON/.test((document.activeElement || {}).tagName || '')) { e.preventDefault(); swToggle(); }
+});
+// σύρσιμο σφαιριδίου
+let drag = false;
+function ptr(ev) { const r = cv.getBoundingClientRect(); return { x: (ev.clientX - r.left) * CW / r.width, y: (ev.clientY - r.top) * CH / r.height }; }
+cv.addEventListener('pointerdown', ev => {
+  if (S.released || S.t > 0) return;
+  const p = ptr(ev), b = bobPos(S.th);
+  if (Math.hypot(p.x - b.x, p.y - b.y) <= geom().r + 16) { drag = true; try { cv.setPointerCapture(ev.pointerId); } catch (e) {} }
+});
+cv.addEventListener('pointermove', ev => {
+  const p = ptr(ev);
+  if (!drag) { const b = bobPos(S.th); cv.style.cursor = (!S.released && S.t === 0 && Math.hypot(p.x - b.x, p.y - b.y) <= geom().r + 16) ? 'grab' : 'default'; return; }
+  const ang = Math.atan2(p.x - PIV.x, p.y - PIV.y) / RAD;
+  P.side = ang >= 0 ? 1 : -1; P.amp = clamp(Math.round(Math.abs(ang)), 1, 90);
+  S.th = P.side * P.amp * RAD; S.hist = [{ t: 0, th: S.th }]; syncFields();
+});
+const endDrag = () => { if (drag) { drag = false; resetSim(); } };
+cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+
+/* ---------- βρόχος ---------- */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (S.released) {
+    const sp = +$('speed').value; let rem = dt * sp;
+    while (rem > 1e-12) { step(); rem -= HSUB; if (!S.released) break; }
+    $('disp').textContent = fmtSW(SW.t); $('cnt').textContent = SW.n;
+  }
+  drawScene(); drawGraphs();
+  requestAnimationFrame(frame);
+}
+resetSim(); renderTable(); renderStatus();
+window.__k = { P: P, S: S, SW: SW, get rows() { return rows; }, step: step, swToggle: swToggle, record: record, resetSim: resetSim, Texact: Texact, T0: T0, syncFields: syncFields, setReleased: v => { S.released = v; updateUI(); }, renderTable: renderTable };
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
