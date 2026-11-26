@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Κύματα: διάδοση, συμβολή, στάσιμα</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:system-ui,"Segoe UI",Roboto,Arial,sans-serif;margin:0;background:#f4f6f9;color:#1d2433}
+  .wrap{max-width:1400px;margin:0 auto;padding:16px}
+  h1{font-size:20px;margin:0 0 10px}
+  canvas{width:100%;height:auto;background:#fff;border:1px solid #d5dbe5;border-radius:10px;display:block}
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:12px;align-items:start}
+  .col{min-width:0}
+  .col > * + *{margin-top:10px}
+  @media (max-width:1000px){.grid{grid-template-columns:minmax(0,1fr)}}
+  .panel{background:#fff;border:1px solid #d5dbe5;border-radius:10px;padding:10px 12px}
+  .panel h2{font-size:14px;margin:0 0 8px;color:#34425a}
+  .row{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+  .row + .row{margin-top:8px}
+  label{font-size:14px;display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 8px;max-width:100%}
+  select{font:inherit;font-size:14px;padding:5px 8px;border-radius:6px;border:1px solid #9aa6ba;background:#fff;max-width:100%;min-width:0}
+  button.b{font:inherit;font-size:14px;padding:7px 14px;border-radius:8px;border:1px solid #9aa6ba;background:#f0f3f8;cursor:pointer}
+  button.b:hover{background:#e3e9f3}
+  button.primary{background:#2b6cb0;border-color:#2b6cb0;color:#fff}
+  button.primary:hover{background:#245a93}
+  input[type=range]{min-width:0}
+  .nf{display:grid;grid-template-columns:112px minmax(0,1fr) 84px;gap:6px 8px;align-items:center;font-size:13px}
+  .nf + .nf{margin-top:6px}
+  .nf .nl{color:#34425a}
+  .nf input[type=number]{font:inherit;font-size:13px;width:100%;padding:4px 6px;border:1px solid #9aa6ba;border-radius:6px;background:#fff}
+  .hint{font-size:12px;color:#5b667a;margin-top:6px;line-height:1.45}
+  .hide{display:none!important}
+  #status{font-size:14px;color:#2f3c55;line-height:1.5;background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 12px;min-height:40px}
+  #status .warn{color:#a02d22;font-weight:600}
+  .formula{font-family:Georgia,"Times New Roman",serif;font-size:15px;background:#f6f8fc;border:1px solid #e0e6f0;border-radius:8px;padding:6px 10px;margin-top:8px;line-height:1.7}
+  table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+  th,td{border-bottom:1px solid #e3e8f0;padding:5px 8px;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  th{color:#5b667a;font-weight:600}
+  .tablewrap{overflow-x:auto}
+  .res{margin-top:10px;font-size:14px;line-height:1.6}
+  .note{font-size:13px;color:#46536b;line-height:1.55;background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 12px}
+  .tgl{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+  .tl{font-variant-numeric:tabular-nums;font-weight:600;color:#1f4f8f;min-width:70px}
+  canvas#cv{cursor:ew-resize;touch-action:pan-y}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Κύματα: διάδοση, συμβολή και στάσιμα</h1>
+  <div class="grid">
+    <div class="col">
+      <canvas id="cv"></canvas>
+      <div class="panel">
+        <div class="row">
+          <button class="b primary" id="play">⏸ Παύση</button>
+          <button class="b" id="rew" title="Επιστροφή στο t = 0">⏮ t = 0</button>
+          <label>Ταχύτητα
+            <select id="speed"><option value="0.1">0,1×</option><option value="0.25">0,25×</option><option value="0.5" selected>0,5×</option><option value="1">1×</option><option value="2">2×</option></select>
+          </label>
+          <span class="tl" id="tlab">t = 0 s</span>
+        </div>
+        <div class="row">
+          <div class="tgl">
+            <label><input type="checkbox" id="tV" checked> Διάνυσμα ταχύτητας υ</label>
+            <label><input type="checkbox" id="tA" checked> Διάνυσμα επιτάχυνσης α</label>
+            <label><input type="checkbox" id="tL" checked> Σήμανση λ, A (δεσμών, κοιλιών)</label>
+            <label><input type="checkbox" id="tC" checked> Συνιστώσες κύματα ξ₁, ξ₂</label>
+          </div>
+        </div>
+        <div class="hint">Κάνε κλικ ή σύρε πάνω στο κύμα για να διαλέξεις το σωματίδιο που παρακολουθείς.</div>
+      </div>
+      <div id="status"></div>
+    </div>
+    <div class="col">
+      <div class="panel">
+        <h2>Είδος κύματος</h2>
+        <div class="row" style="margin-bottom:8px">
+          <label>Λειτουργία <select id="mode"><option value="single">Ένα κύμα (διάδοση)</option><option value="interf">Συμβολή δύο κυμάτων</option><option value="stand">Στάσιμο κύμα</option></select></label>
+        </div>
+        <div class="row">
+          <label>Κύμα <select id="type"><option value="trans">Εγκάρσιο</option><option value="long">Διαμήκες</option></select></label>
+          <label>Διάδοση <select id="dir"><option value="1">προς τα δεξιά (+x)</option><option value="-1">προς τα αριστερά (−x)</option></select></label>
+        </div>
+        <div class="formula" id="formula"></div>
+      </div>
+      <div class="panel">
+        <h2>Χαρακτηριστικά</h2>
+        <div id="fwave"></div>
+        <div class="hint" id="phihint"></div>
+      </div>
+      <div class="panel" id="p2panel">
+        <h2 id="p2title">Δεύτερο κύμα</h2>
+        <div id="fwave2"></div>
+        <div class="row" id="rowdir2"><label>Διάδοση του 2ου κύματος <select id="dir2"><option value="1">προς τα δεξιά (+x)</option><option value="-1">προς τα αριστερά (−x)</option></select></label></div>
+        <div class="row" id="rowbc"><label>Στο x = 0 υπάρχει <select id="bc"><option value="node">δεσμός (ακλόνητο άκρο)</option><option value="anti">κοιλία (ελεύθερο άκρο)</option></select></label></div>
+        <div class="hint" id="p2hint"></div>
+      </div>
+      <div class="panel">
+        <h2>Σωματίδια του μέσου</h2>
+        <div id="fpart"></div>
+        <div class="row" style="margin-top:8px"><label><input type="checkbox" id="two"> Δεύτερο σωματίδιο (σύγκριση φάσης)</label></div>
+        <div id="fpart2"></div>
+      </div>
+      <div class="panel">
+        <h2>Γραφήματα</h2>
+        <div class="row"><label>Συναρτήσει του <select id="gmode"><option value="t">χρόνου t (για τα επιλεγμένα σωματίδια)</option><option value="x">θέσης x (στιγμιότυπο τη χρονική στιγμή t)</option></select></label></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:12px">
+    <h2 id="gtitle">Γραφήματα</h2>
+    <canvas id="gr"></canvas>
+  </div>
+  <div class="panel" style="margin-top:12px">
+    <h2>Αποτελέσματα</h2>
+    <div class="tablewrap" id="tbl"></div>
+    <div class="res" id="res"></div>
+  </div>
+  <div class="note" style="margin-top:12px">Αρμονικό κύμα που διαδίδεται κατά τον άξονα x: ξ(x, t) = A·ημ(ωt ∓ kx + φ₀) (πάνω πρόσημο για διάδοση προς +x), με ω = 2πf, k = 2π/λ και ταχύτητα διάδοσης υ = λ·f. Κάθε σωματίδιο εκτελεί απλή αρμονική ταλάντωση ξ = A·ημ(ωt + φ), με φ = φ₀ ∓ kx. Η ταχύτητα ταλάντωσης του σωματιδίου είναι υ = dξ/dt = Aω·συν(ωt ∓ kx + φ₀) και η επιτάχυνσή του α = −ω²·ξ· δεν πρέπει να συγχέεται με την ταχύτητα διάδοσης του κύματος. Στο εγκάρσιο κύμα τα σωματίδια κινούνται κάθετα στη διεύθυνση διάδοσης και στο διαμήκες παράλληλα, δημιουργώντας πυκνώσεις και αραιώσεις. Η απόσταση δύο σωματιδίων Δx αντιστοιχεί σε διαφορά φάσης Δφ = k·Δx = 2π·Δx/λ.</div>
+</div>
+
+<script>
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const dpr = window.devicePixelRatio || 1;
+const CW = 960, CH = 390, GH = 3 * 142 + 14;
+const cv = $('cv'), gr = $('gr');
+const g = cv.getContext('2d'), gg = gr.getContext('2d');
+function setSize(c, ctx, w, h) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+setSize(cv, g, CW, CH); setSize(gr, gg, CW, GH);
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const RAD = Math.PI / 180, TWO = Math.PI * 2;
+const C1 = '#1f6feb', C2 = '#e8890c', CV = '#2a9d57', CA = '#d62839';
+const fx = (x, d) => { if (Math.abs(x) < 0.5 * Math.pow(10, -d)) x = 0; return (x < 0 ? '−' : '') + Math.abs(x).toFixed(d).replace('.', ','); };
+function num(x, sig) {
+  sig = sig || 3; if (!isFinite(x)) return '∞'; if (x === 0) return '0';
+  let s = Math.abs(x).toPrecision(sig);
+  if (s.indexOf('e') >= 0) s = String(Number(s)); else if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return (x < 0 ? '−' : '') + s.replace('.', ',');
+}
+function niceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(x))), m = x / p; return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p; }
+function h(tag, attrs) {
+  const el = document.createElement(tag);
+  if (attrs) for (const k in attrs) { if (k === 'class') el.className = attrs[k]; else if (k.slice(0, 2) === 'on') el[k] = attrs[k]; else el.setAttribute(k, attrs[k]); }
+  for (let i = 2; i < arguments.length; i++) { const c = arguments[i]; if (c === null || c === undefined) continue; el.append(c.nodeType ? c : document.createTextNode(c)); }
+  return el;
+}
+function ctext(ctx, s, x, y, col, size, align, weight) {
+  ctx.font = (weight || 600) + ' ' + (size || 13) + 'px system-ui, Arial, sans-serif';
+  ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,.92)'; ctx.lineJoin = 'round';
+  ctx.strokeText(s, x, y); ctx.fillStyle = col; ctx.fillText(s, x, y);
+}
+function arrow(ctx, x0, y0, x1, y1, col, w) {
+  const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy); if (L < 3) return;
+  const ang = Math.atan2(dy, dx), hl = Math.min(10, L * 0.5);
+  ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = w || 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - Math.cos(ang) * hl * 0.7, y1 - Math.sin(ang) * hl * 0.7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - hl * Math.cos(ang - 0.4), y1 - hl * Math.sin(ang - 0.4)); ctx.lineTo(x1 - hl * Math.cos(ang + 0.4), y1 - hl * Math.sin(ang + 0.4)); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/* ---------- παράμετροι και κύμα ---------- */
+const P = { mode: 'single', type: 'trans', dir: 1, A: 0.3, f: 0.5, lam: 2, phi: 0, A2: 0.3, f2: 0.5, phi2: 0, dir2: 1, bc: 'node', x1: 3, x2: 4, two: false, gmode: 't' };
+const XMAX = 10, NP = 100;
+let t = 0, playing = true;
+const om = () => TWO * P.f, kk = () => TWO / P.lam;
+let CS = [], ATOT = 0.3, VTOT = 1, QTOT = 1, KATOT = 0;
+function updComps() {
+  const c = [{ A: P.A, om: TWO * P.f, k: TWO / P.lam, dir: P.dir, phi: P.phi * RAD, col: C1 }];
+  if (P.mode === 'interf') { const v = P.lam * P.f; c.push({ A: P.A2, om: TWO * P.f2, k: TWO * P.f2 / v, dir: P.dir2, phi: P.phi2 * RAD, col: C2 }); }
+  else if (P.mode === 'stand') c.push({ A: P.A, om: TWO * P.f, k: TWO / P.lam, dir: -P.dir, phi: P.phi * RAD - (P.bc === 'node' ? Math.PI : 0), col: C2 });
+  CS = c; ATOT = 0; VTOT = 0; QTOT = 0; KATOT = 0;
+  c.forEach(w => { ATOT += w.A; VTOT += w.A * w.om; QTOT += w.A * w.om * w.om; KATOT += w.A * w.k; });
+  ATOT = Math.max(ATOT, 1e-6); VTOT = Math.max(VTOT, 1e-6); QTOT = Math.max(QTOT, 1e-6);
+}
+const xiF = (x, tt) => { let s = 0; for (const w of CS) s += w.A * Math.sin(w.om * tt - w.dir * w.k * x + w.phi); return s; };
+const uF = (x, tt) => { let s = 0; for (const w of CS) s += w.A * w.om * Math.cos(w.om * tt - w.dir * w.k * x + w.phi); return s; };
+const aF = (x, tt) => { let s = 0; for (const w of CS) s -= w.A * w.om * w.om * Math.sin(w.om * tt - w.dir * w.k * x + w.phi); return s; };
+const dXi = (x, tt) => { let s = 0; for (const w of CS) s -= w.dir * w.k * w.A * Math.cos(w.om * tt - w.dir * w.k * x + w.phi); return s; };
+// περιβάλλουσα πλάτους (για συνιστώσες ίδιας συχνότητας)
+const env = x => { let c = 0, s = 0; for (const w of CS) { const th = -w.dir * w.k * x + w.phi; c += w.A * Math.cos(th); s += w.A * Math.sin(th); } return Math.hypot(c, s); };
+function standPts(isNode) {
+  const k = kk(), sd = P.dir, d = P.bc === 'node' ? Math.PI / 2 : 0, step = Math.PI / k;
+  let x0 = (sd * d + (isNode ? Math.PI / 2 : 0)) / k; x0 = ((x0 % step) + step) % step; if (x0 > step - 1e-9) x0 = 0;
+  const out = []; for (let x = x0; x <= XMAX + 1e-9; x += step) out.push(x); return out;
+}
+
+/* ---------- σκηνή ---------- */
+const X0 = 40, X1 = CW - 40, SX = (X1 - X0) / XMAX;
+const px = x => X0 + x * SX;
+let SYV = 90;                 // px ανά m (κατακόρυφα, εγκάρσιο)
+let CY = 190;
+function rulerAndAxes() {
+  const yR = CH - 38;
+  g.strokeStyle = '#9aa4b8'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X0, yR); g.lineTo(X1, yR); g.stroke();
+  g.font = '600 11px system-ui, Arial'; g.fillStyle = '#5b667a'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (let x = 0; x <= XMAX + 1e-9; x += 1) { g.beginPath(); g.moveTo(px(x), yR); g.lineTo(px(x), yR + 6); g.stroke(); g.fillText(String(x), px(x), yR + 17); }
+  g.textAlign = 'left'; g.fillText('x (m)', X1 + 4, yR + 17 - 12);
+}
+function markers() {
+  const list = [{ x: P.x1, c: C1, n: 'x₁' }]; if (P.two) list.push({ x: P.x2, c: C2, n: 'x₂' });
+  list.forEach(m => {
+    g.save(); g.strokeStyle = m.c; g.globalAlpha = 0.55; g.setLineDash([4, 4]); g.lineWidth = 1.4; g.beginPath(); g.moveTo(px(m.x), 18); g.lineTo(px(m.x), CH - 38); g.stroke(); g.restore();
+    g.fillStyle = m.c; g.beginPath(); g.moveTo(px(m.x), CH - 40); g.lineTo(px(m.x) - 6, CH - 52); g.lineTo(px(m.x) + 6, CH - 52); g.closePath(); g.fill();
+    ctext(g, m.n + ' = ' + fx(m.x, 2) + ' m', px(m.x), CH - 62, m.c, 11, 'center', 700);
+  });
+}
+function nodeMarks(yN, yA) {
+  standPts(true).forEach(x => { g.fillStyle = CA; g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.beginPath(); g.arc(px(x), yN, 5.5, 0, 6.3); g.fill(); g.stroke(); });
+  standPts(false).forEach(x => { g.fillStyle = CV; g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(px(x), yA - 7); g.lineTo(px(x) + 6, yA); g.lineTo(px(x), yA + 7); g.lineTo(px(x) - 6, yA); g.closePath(); g.fill(); g.stroke(); });
+  const n = standPts(true).filter(x => x > 0.02 || true); if (n.length >= 2) { const xa = n[0] < 0.01 && n.length > 2 ? n[1] : n[0], xb = xa + P.lam / 2; if (xb <= XMAX) { const yd = 52; arrow(g, (px(xa) + px(xb)) / 2, yd, px(xb), yd, '#6b4fbb', 2); arrow(g, (px(xa) + px(xb)) / 2, yd, px(xa), yd, '#6b4fbb', 2); g.save(); g.strokeStyle = '#6b4fbb'; g.setLineDash([3, 3]); [xa, xb].forEach(x => { g.beginPath(); g.moveTo(px(x), yd); g.lineTo(px(x), yN - 6); g.stroke(); }); g.restore(); ctext(g, 'λ/2 = ' + fx(P.lam / 2, 2) + ' m (διαδοχικοί δεσμοί)', (px(xa) + px(xb)) / 2, yd - 12, '#6b4fbb', 12, 'center', 700); } }
+}
+function drawTrans() {
+  CY = 185; SYV = Math.min(90, 95 / ATOT);
+  g.strokeStyle = '#b8c1d1'; g.setLineDash([6, 5]); g.lineWidth = 1.3; g.beginPath(); g.moveTo(X0, CY); g.lineTo(X1, CY); g.stroke(); g.setLineDash([]);
+  if (P.mode === 'stand') {
+    g.save(); g.strokeStyle = '#a7b0c3'; g.lineWidth = 1.5; g.setLineDash([2, 4]);
+    [1, -1].forEach(sg => { g.beginPath(); for (let i = 0; i <= 400; i++) { const x = XMAX * i / 400, y = CY - sg * SYV * env(x); if (i) g.lineTo(px(x), y); else g.moveTo(px(x), y); } g.stroke(); });
+    g.restore();
+  }
+  if (P.mode !== 'single' && $('tC').checked) {
+    CS.forEach(w => { g.save(); g.strokeStyle = w.col; g.globalAlpha = 0.75; g.lineWidth = 1.7; g.setLineDash([5, 3]); g.beginPath();
+      for (let i = 0; i <= 300; i++) { const x = XMAX * i / 300, y = CY - SYV * w.A * Math.sin(w.om * t - w.dir * w.k * x + w.phi); if (i) g.lineTo(px(x), y); else g.moveTo(px(x), y); }
+      g.stroke(); g.restore(); });
+  }
+  g.strokeStyle = P.mode === 'single' ? '#8fb1e8' : '#6f87c9'; g.lineWidth = P.mode === 'single' ? 2.2 : 3; g.beginPath();
+  for (let i = 0; i <= NP; i++) { const x = XMAX * i / NP, y = CY - SYV * xiF(x, t); if (i) g.lineTo(px(x), y); else g.moveTo(px(x), y); }
+  g.stroke();
+  for (let i = 0; i <= NP; i++) { const x = XMAX * i / NP, y = CY - SYV * xiF(x, t); g.fillStyle = '#4a7fd0'; g.beginPath(); g.arc(px(x), y, 3, 0, 6.3); g.fill(); }
+  if ($('tL').checked) {
+    if (P.mode === 'single') {
+      const k = kk(), s = P.dir;
+      let xc = ((((s * (om() * t + P.phi * RAD - Math.PI / 2)) / k) % P.lam) + P.lam) % P.lam; if (xc < 0.25) xc += P.lam;
+      if (xc + P.lam <= XMAX + 0.01) {
+        const yd = 34;
+        g.save(); g.strokeStyle = '#6b4fbb'; g.lineWidth = 1.4; g.setLineDash([3, 3]);
+        [xc, xc + P.lam].forEach(x => { g.beginPath(); g.moveTo(px(x), yd); g.lineTo(px(x), CY - SYV * P.A); g.stroke(); }); g.restore();
+        arrow(g, px(xc + P.lam / 2), yd, px(xc + P.lam), yd, '#6b4fbb', 2); arrow(g, px(xc + P.lam / 2), yd, px(xc), yd, '#6b4fbb', 2);
+        ctext(g, 'λ = ' + fx(P.lam, 2) + ' m', px(xc + P.lam / 2), yd - 12, '#6b4fbb', 12, 'center', 700);
+        arrow(g, px(xc) + 14, CY, px(xc) + 14, CY - SYV * P.A, '#a06a00', 2);
+        ctext(g, 'A = ' + fx(P.A, 2) + ' m', px(xc) + 16, CY - SYV * P.A / 2, '#a06a00', 11, 'left', 700);
+      }
+    } else if (P.mode === 'stand') nodeMarks(CY, CY - 20);
+  }
+  const sel = [{ x: P.x1, c: C1 }]; if (P.two) sel.push({ x: P.x2, c: C2 });
+  sel.forEach(s => {
+    const y = CY - SYV * xiF(s.x, t);
+    g.fillStyle = s.c; g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(px(s.x), y, 7, 0, 6.3); g.fill(); g.stroke();
+    if ($('tV').checked) { const L = 60 * uF(s.x, t) / VTOT; arrow(g, px(s.x) + 10, y, px(s.x) + 10, y - L, CV, 3); }
+    if ($('tA').checked) { const L = 60 * aF(s.x, t) / QTOT; arrow(g, px(s.x) - 10, y, px(s.x) - 10, y - L, CA, 3); }
+  });
+}
+function drawLong() {
+  const rows = 7, dy = 22, y0 = 90;
+  CY = y0 + (rows - 1) * dy / 2;
+  const ys = 252, hs = 26;
+  for (let i = 0; i < 440; i++) {
+    const xs = X0 + (i + 0.5) * (X1 - X0) / 440, xw = (xs - X0) / SX;
+    const rho = 1 / Math.max(0.15, 1 + dXi(xw, t));
+    const a = clamp((rho - 0.4) / 1.6, 0, 1);
+    g.fillStyle = 'rgba(31,79,143,' + a.toFixed(3) + ')'; g.fillRect(X0 + i * (X1 - X0) / 440, ys, (X1 - X0) / 440 + 0.6, hs);
+  }
+  g.strokeStyle = '#c7cedb'; g.lineWidth = 1; g.strokeRect(X0 + 0.5, ys + 0.5, X1 - X0, hs);
+  ctext(g, 'πυκνότητα του μέσου: σκούρο = πύκνωση, ανοιχτό = αραίωση', (X0 + X1) / 2, ys + hs + 13, '#6b7488', 11, 'center', 600);
+  for (let r = 0; r < rows; r++) for (let i = 0; i <= NP; i++) {
+    const x = XMAX * i / NP, xp = px(x + xiF(x, t)), yy = y0 + r * dy;
+    g.fillStyle = '#4a7fd0'; g.beginPath(); g.arc(xp, yy, 2.8, 0, 6.3); g.fill();
+  }
+  if ($('tL').checked) {
+    if (P.mode === 'single') {
+      const k = kk(), s = P.dir;
+      let xc = ((((s * (om() * t + P.phi * RAD)) / k) % P.lam) + P.lam) % P.lam; if (xc < 0.25) xc += P.lam;
+      if (xc + P.lam <= XMAX + 0.01) {
+        const yd = 34; g.save(); g.strokeStyle = '#6b4fbb'; g.lineWidth = 1.4; g.setLineDash([3, 3]);
+        [xc, xc + P.lam].forEach(x => { g.beginPath(); g.moveTo(px(x + xiF(x, t)), yd); g.lineTo(px(x + xiF(x, t)), ys + hs); g.stroke(); }); g.restore();
+        const xa = px(xc + xiF(xc, t)), xb = px(xc + P.lam + xiF(xc + P.lam, t));
+        arrow(g, (xa + xb) / 2, yd, xb, yd, '#6b4fbb', 2); arrow(g, (xa + xb) / 2, yd, xa, yd, '#6b4fbb', 2);
+        ctext(g, 'λ = ' + fx(P.lam, 2) + ' m (απόσταση πυκνώσεων)', (xa + xb) / 2, yd - 12, '#6b4fbb', 12, 'center', 700);
+      }
+    } else if (P.mode === 'stand') nodeMarks(238, 238);
+  }
+  const sel = [{ x: P.x1, c: C1 }]; if (P.two) sel.push({ x: P.x2, c: C2 });
+  sel.forEach(s => {
+    const xp = px(s.x + xiF(s.x, t));
+    for (let r = 0; r < rows; r++) { g.fillStyle = s.c; g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.beginPath(); g.arc(xp, y0 + r * dy, 4.6, 0, 6.3); g.fill(); g.stroke(); }
+    if ($('tV').checked) arrow(g, xp, y0 - 18, xp + 50 * uF(s.x, t) / VTOT, y0 - 18, CV, 3);
+    if ($('tA').checked) arrow(g, xp, y0 + (rows - 1) * dy + 18, xp + 50 * aF(s.x, t) / QTOT, y0 + (rows - 1) * dy + 18, CA, 3);
+  });
+}
+function drawScene() {
+  g.clearRect(0, 0, CW, CH); g.fillStyle = '#fbfcfe'; g.fillRect(0, 0, CW, CH);
+  if (P.type === 'trans') drawTrans(); else drawLong();
+  rulerAndAxes(); markers();
+  g.save();
+  ctext(g, 't = ' + fx(t, 2) + ' s', 14, 18, '#1f4f8f', 14, 'left', 700);
+  ctext(g, 'υ διάδοσης = λ·f = ' + fx(P.lam * P.f, 2) + ' m/s', CW - 14, 18, '#34425a', 13, 'right', 700);
+  const dirx = P.dir > 0 ? CW - 80 : CW - 220;
+  ctext(g, P.dir > 0 ? 'διάδοση →' : '← διάδοση', CW - 14, 38, '#6b7488', 12, 'right', 600);
+  const legY = CH - 8;
+  if ($('tV').checked) { arrow(g, 14, legY - 56, 40, legY - 56, CV, 3); ctext(g, 'υ σωματιδίου', 46, legY - 56, CV, 11, 'left', 700); }
+  if ($('tA').checked) { arrow(g, 14, legY - 40, 40, legY - 40, CA, 3); ctext(g, 'α σωματιδίου', 46, legY - 40, CA, 11, 'left', 700); }
+  g.restore();
+  if (P.mode !== 'single' && P.type === 'trans' && $('tC').checked) {
+    [[C1, 'ξ₁', true], [C2, 'ξ₂', true], ['#4a7fd0', 'ξ = ξ₁ + ξ₂', false]].forEach((q, i) => {
+      g.save(); g.strokeStyle = q[0]; g.lineWidth = q[2] ? 2 : 3.2; if (q[2]) g.setLineDash([5, 3]); g.beginPath(); g.moveTo(14, 40 + i * 16); g.lineTo(40, 40 + i * 16); g.stroke(); g.restore();
+      ctext(g, q[1], 46, 40 + i * 16, q[0], 11, 'left', 700);
+    });
+  }
+  if (P.mode === 'stand') {
+    ctext(g, '● δεσμοί', 14, CH - 92, CA, 11, 'left', 700); ctext(g, '◆ κοιλίες', 14, CH - 76, CV, 11, 'left', 700);
+  }
+  if (P.type === 'long' && KATOT > 0.95) ctext(g, 'Προσοχή: το πλάτος είναι πολύ μεγάλο για αυτό το λ (τα σωματίδια διασταυρώνονται)', CW / 2, CH - 42, CA, 12, 'center', 700);
+}
+
+/* ---------- γραφήματα ---------- */
+const GL = 84, GR = CW - 16;
+function drawGraphs() {
+  const ctx = gg; ctx.clearRect(0, 0, CW, GH);
+  const T = 1 / P.f, byT = P.gmode === 't';
+  let Tw = 4 * T; if (P.mode === 'interf' && Math.abs(P.f - P.f2) > 1e-6) Tw = Math.min(60, Math.max(4 * T, 2.5 / Math.abs(P.f - P.f2)));
+  const s0 = byT ? Math.max(0, t - 0.75 * Tw) : 0, s1 = byT ? s0 + Tw : XMAX, span = s1 - s0;
+  const panels = [
+    { title: 'Απομάκρυνση ξ', unit: 'm', R: ATOT, fn: (x, tt) => xiF(x, tt) },
+    { title: 'Ταχύτητα ταλάντωσης υ', unit: 'm/s', R: VTOT, fn: (x, tt) => uF(x, tt) },
+    { title: 'Επιτάχυνση α', unit: 'm/s²', R: QTOT, fn: (x, tt) => aF(x, tt) }
+  ];
+  const sers = [{ x: P.x1, c: C1, n: 'x₁' }]; if (P.two) sers.push({ x: P.x2, c: C2, n: 'x₂' });
+  panels.forEach((p, pi) => {
+    const top = 8 + pi * 142, pt = top + 24, pb = top + 112, ph = pb - pt, pw = GR - GL;
+    const lim = p.R * 1.18, Y = v => pt + ph / 2 - v / lim * ph / 2, Xp = s => GL + (s - s0) / span * pw;
+    ctx.fillStyle = '#fbfcfe'; ctx.fillRect(GL, pt, pw, ph); ctx.strokeStyle = '#d5dbe5'; ctx.lineWidth = 1; ctx.strokeRect(GL + 0.5, pt + 0.5, pw, ph);
+    const st = niceStep(2 * lim / 4); ctx.font = '600 11px system-ui, Arial'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (let v = -Math.floor(lim / st) * st; v <= lim + 1e-12; v += st) { const y = Y(v), z = Math.abs(v) < st * 1e-6; ctx.strokeStyle = z ? '#8b97ab' : '#e6eaf1'; ctx.lineWidth = z ? 1.4 : 1; ctx.beginPath(); ctx.moveTo(GL, y); ctx.lineTo(GR, y); ctx.stroke(); ctx.fillStyle = '#5b667a'; ctx.fillText(z ? '0' : num(v, 3), GL - 6, y); }
+    ctx.textAlign = 'center';
+    const ts = niceStep(span / 8);
+    for (let s = Math.ceil(s0 / ts) * ts; s <= s1 + 1e-9; s += ts) { const x = Xp(s); ctx.strokeStyle = '#eef1f6'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, pt); ctx.lineTo(x, pb); ctx.stroke(); ctx.fillStyle = '#5b667a'; ctx.fillText(num(s, 3) + (byT ? ' s' : ' m'), x, pb + 11); }
+    // περίοδοι/μήκη κύματος: κάθετες διακεκομμένες
+    sers.slice().reverse().forEach(s => {
+      ctx.save(); ctx.beginPath(); ctx.rect(GL, pt, pw, ph); ctx.clip();
+      ctx.strokeStyle = s.c; ctx.lineWidth = 2.4; ctx.lineJoin = 'round'; ctx.beginPath();
+      const NS = 500;
+      for (let i = 0; i <= NS; i++) { const sv = s0 + span * i / NS, v = byT ? p.fn(s.x, sv) : p.fn(sv, t); const x = Xp(sv), y = Y(v); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
+      ctx.stroke(); ctx.restore();
+    });
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.font = '700 12px system-ui, Arial'; ctx.fillStyle = '#34425a';
+    const ttl = p.title + ' (' + p.unit + ')'; ctx.fillText(ttl, GL, top + 9);
+    let lx = GL + ctx.measureText(ttl).width + 22;
+    sers.forEach(s => {
+      const v = p.fn(s.x, t), txt = s.n + ' = ' + fx(v, 3);
+      ctx.fillStyle = s.c; ctx.fillRect(lx, top + 7, 14, 4); ctx.fillText(txt, lx + 19, top + 9); lx += 19 + ctx.measureText(txt).width + 18;
+    });
+    if (byT) {
+      const xc = Xp(t); ctx.strokeStyle = '#334'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(xc, pt); ctx.lineTo(xc, pb); ctx.stroke();
+      sers.forEach(s => { ctx.fillStyle = s.c; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(xc, Y(p.fn(s.x, t)), 4.5, 0, 6.3); ctx.fill(); ctx.stroke(); });
+    } else {
+      sers.forEach(s => { const x = Xp(s.x); ctx.strokeStyle = s.c; ctx.globalAlpha = 0.5; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(x, pt); ctx.lineTo(x, pb); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.fillStyle = s.c; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, Y(p.fn(s.x, t)), 4.5, 0, 6.3); ctx.fill(); ctx.stroke(); });
+    }
+  });
+}
+
+/* ---------- κείμενα ---------- */
+function phiStr(deg) {
+  const r = deg / 180;
+  const fr = [[0, '0'], [1 / 6, 'π/6'], [1 / 4, 'π/4'], [1 / 3, 'π/3'], [1 / 2, 'π/2'], [2 / 3, '2π/3'], [3 / 4, '3π/4'], [5 / 6, '5π/6'], [1, 'π']];
+  const a = Math.abs(r); for (const f of fr) if (Math.abs(a - f[0]) < 1e-6) return (r < 0 && f[0] ? '−' : '') + f[1] + ' rad';
+  return fx(r * Math.PI, 2) + ' rad';
+}
+const wrap = d => ((d % 360) + 540) % 360 - 180;
+function renderInfo() {
+  const w = om(), k = kk(), v = P.lam * P.f, mode = P.mode;
+  const wv = c => fx(c.A, 2) + '·ημ(' + fx(c.om, 2) + '·t ' + (c.dir > 0 ? '−' : '+') + ' ' + fx(c.k, 2) + '·x ' + (c.phi < 0 ? '−' : '+') + ' ' + fx(Math.abs(c.phi), 2) + ')';
+  const sg = P.dir > 0 ? '−' : '+';
+  let fm;
+  if (mode === 'single') fm = 'ξ(x,t) = ' + wv(CS[0]) + '  (SI)';
+  else if (mode === 'interf') fm = 'ξ₁ = ' + wv(CS[0]) + '<br>ξ₂ = ' + wv(CS[1]) + '<br>ξ = ξ₁ + ξ₂';
+  else { const dl = P.bc === 'node' ? 90 : 0, pb = P.phi - dl; fm = 'ξ₁ = ' + wv(CS[0]) + '<br>ξ₂ = ' + wv(CS[1]) + '<br>ξ = 2A·συν(kx ' + sg + ' ' + dl + '°)·ημ(ωt ' + (pb < 0 ? '−' : '+') + ' ' + fx(Math.abs(pb), 0) + '°)'; }
+  $('formula').innerHTML = fm;
+  $('phihint').textContent = (mode === 'stand' ? 'Προσπίπτον κύμα: ' : '') + 'αρχική φάση φ₀ = ' + fx(P.phi, 0) + '° = ' + phiStr(P.phi) + ' (στο x = 0 και t = 0).';
+  if (mode === 'interf') $('p2hint').textContent = 'Στο ίδιο μέσο η ταχύτητα διάδοσης είναι κοινή (υ = λ₁f₁ = λ₂f₂ = ' + fx(v, 2) + ' m/s), άρα λ₂ = υ/f₂ = ' + fx(v / P.f2, 2) + ' m. Αν f₂ = f₁ τα κύματα είναι σύμφωνα· αν διαφέρουν, εμφανίζονται διακροτήματα.';
+  else if (mode === 'stand') $('p2hint').textContent = 'Το ανακλώμενο κύμα έχει ίδιο πλάτος, ίδια συχνότητα και ίδιο μήκος κύματος αλλά αντίθετη φορά διάδοσης. Στο x = 0 σχηματίζεται δεσμός ή κοιλία, ανάλογα με το είδος του άκρου.';
+  // πίνακας
+  let rows = [['Περίοδος T = 1/f', fx(1 / P.f, 3) + ' s'], ['Κυκλική συχνότητα ω = 2πf', fx(w, 3) + ' rad/s'], ['Κυματάριθμος k = 2π/λ', fx(k, 3) + ' rad/m'], ['Ταχύτητα διάδοσης υ = λ·f', fx(v, 3) + ' m/s']];
+  if (mode === 'single') rows.push(['Μέγιστη ταχύτητα ταλάντωσης Aω', fx(P.A * w, 3) + ' m/s'], ['Μέγιστη επιτάχυνση Aω²', fx(P.A * w * w, 3) + ' m/s²']);
+  if (mode === 'interf') rows.push(['2ο κύμα: περίοδος T₂ = 1/f₂', fx(1 / P.f2, 3) + ' s'], ['2ο κύμα: μήκος κύματος λ₂ = υ/f₂', fx(v / P.f2, 3) + ' m'], ['Μέγιστο πλάτος ταλάντωσης A₁ + A₂', fx(P.A + P.A2, 3) + ' m']);
+  if (mode === 'stand') { const nn = standPts(true).length, na = standPts(false).length; rows.push(['Πλάτος σε κοιλία = 2A', fx(2 * P.A, 3) + ' m'], ['Απόσταση διαδοχικών δεσμών = λ/2', fx(P.lam / 2, 3) + ' m'], ['Δεσμοί / κοιλίες στα 10 m', nn + ' / ' + na], ['Μέγιστη ταχύτητα κοιλίας 2Aω', fx(2 * P.A * w, 3) + ' m/s']); }
+  $('tbl').innerHTML = '<table><thead><tr><th>Μέγεθος</th><th>Τιμή</th></tr></thead><tbody>' + rows.map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table>';
+  // αποτελέσματα
+  let html = '';
+  const xi = xiF(P.x1, t), ui = uF(P.x1, t), ai = aF(P.x1, t);
+  if (mode === 'single') {
+    const p1 = wrap(P.phi - P.dir * k * P.x1 / RAD);
+    html += 'Σωματίδιο στη θέση x₁ = ' + fx(P.x1, 2) + ' m: ξ = ' + fx(P.A, 2) + '·ημ(ωt + φ₁) με φ₁ = φ₀ ' + sg + ' k·x₁ = ' + fx(p1, 1) + '° (' + phiStr(p1) + ').<br>';
+    html += 'Τώρα (t = ' + fx(t, 2) + ' s): ξ = ' + fx(xi, 3) + ' m · υ = ' + fx(ui, 3) + ' m/s · α = ' + fx(ai, 3) + ' m/s² (έλεγχος: −ω²ξ = ' + fx(-w * w * xi, 3) + ' m/s²).';
+  } else if (mode === 'interf') {
+    html += 'Τώρα στο x₁ = ' + fx(P.x1, 2) + ' m (t = ' + fx(t, 2) + ' s): ξ = ξ₁ + ξ₂ = ' + fx(CS[0].A * Math.sin(CS[0].om * t - CS[0].dir * CS[0].k * P.x1 + CS[0].phi), 3) + ' + ' + fx(CS[1].A * Math.sin(CS[1].om * t - CS[1].dir * CS[1].k * P.x1 + CS[1].phi), 3) + ' = <b>' + fx(xi, 3) + ' m</b>.<br>';
+    if (Math.abs(P.f - P.f2) < 1e-9) {
+      const th = c => -c.dir * c.k * P.x1 + c.phi, dth = ((th(CS[1]) - th(CS[0])) / RAD % 360 + 360) % 360, Ares = env(P.x1);
+      let kind = ''; const m = Math.min(dth, 360 - dth);
+      if (m < 2) kind = ' → <b>ενισχυτική συμβολή</b> (σε φάση)'; else if (Math.abs(dth - 180) < 2) kind = ' → <b>καταστρεπτική συμβολή</b> (αντίθετες φάσεις)';
+      html += 'Ίδια συχνότητα: το σωματίδιο στο x₁ εκτελεί ταλάντωση πλάτους A = √(A₁² + A₂² + 2A₁A₂συνΔφ) = ' + fx(Ares, 3) + ' m, με διαφορά φάσης των δύο κυμάτων στο x₁ Δφ = ' + fx(dth, 1) + '°' + kind + '.';
+      if (CS[0].dir !== CS[1].dir) html += '<br>Τα κύματα έχουν αντίθετη φορά διάδοσης, άρα η Δφ εξαρτάται από τη θέση και το πλάτος έχει δεσμούς και κοιλίες (στάσιμο κύμα).';
+      else html += '<br>Τα κύματα έχουν την ίδια φορά και τον ίδιο λ, άρα η Δφ είναι ίδια σε όλα τα σημεία και το αποτέλεσμα είναι ένα προοδευτικό κύμα με πλάτος ' + fx(Ares, 3) + ' m.';
+    } else {
+      const fb = Math.abs(P.f - P.f2);
+      html += 'Διαφορετικές συχνότητες: το πλάτος ταλάντωσης ενός σημείου μεταβάλλεται περιοδικά μεταξύ |A₁ − A₂| = ' + fx(Math.abs(P.A - P.A2), 3) + ' m και A₁ + A₂ = ' + fx(P.A + P.A2, 3) + ' m. Συχνότητα διακροτήματος f_δ = |f₁ − f₂| = ' + fx(fb, 3) + ' Hz (περίοδος ' + fx(1 / fb, 2) + ' s).';
+    }
+  } else {
+    const E1 = env(P.x1), isN = E1 < 0.02 * P.A, isA = Math.abs(E1 - 2 * P.A) < 0.02 * P.A;
+    html += 'Σωματίδιο στο x₁ = ' + fx(P.x1, 2) + ' m: πλάτος ταλάντωσης A_στ(x₁) = 2A·|συν(kx ∓ δ)| = <b>' + fx(E1, 3) + ' m</b>' + (isN ? ' (δεσμός: μένει ακίνητο)' : isA ? ' (κοιλία: μέγιστο πλάτος 2A)' : '') + '.<br>';
+    html += 'Τώρα (t = ' + fx(t, 2) + ' s): ξ = ' + fx(xi, 3) + ' m · υ = ' + fx(ui, 3) + ' m/s · α = ' + fx(ai, 3) + ' m/s² (έλεγχος: −ω²ξ = ' + fx(-w * w * xi, 3) + ' m/s²).<br>';
+    const nd = standPts(true); html += 'Δεσμοί στις θέσεις: ' + nd.slice(0, 8).map(x => fx(x, 2)).join(', ') + (nd.length > 8 ? ', …' : '') + ' m (ανά λ/2 = ' + fx(P.lam / 2, 2) + ' m). Τα σωματίδια ανάμεσα σε δύο διαδοχικούς δεσμούς ταλαντώνονται σε φάση, ενώ τα σωματίδια εκατέρωθεν ενός δεσμού σε αντίθεση φάσης. Το στάσιμο κύμα δεν μεταφέρει ενέργεια.';
+    if (P.two) { const E2 = env(P.x2); html += '<br>Στο x₂ = ' + fx(P.x2, 2) + ' m το πλάτος είναι ' + fx(E2, 3) + ' m.'; }
+  }
+  if (P.two && mode !== 'stand') {
+    const dx = Math.abs(P.x2 - P.x1), dphi = k * dx / RAD, m = ((dphi % 360) + 360) % 360;
+    let rel = ''; if (mode === 'single') { if (Math.min(m, 360 - m) < 1) rel = ' → <b>σε φάση</b>'; else if (Math.abs(m - 180) < 1) rel = ' → <b>σε αντίθεση φάσης</b>'; html += '<br>Δεύτερο σωματίδιο: Δx = ' + fx(dx, 2) + ' m = ' + fx(dx / P.lam, 2) + '·λ → διαφορά φάσης Δφ = 2π·Δx/λ = ' + fx(dphi, 1) + '° (' + fx(dphi * RAD, 2) + ' rad)' + rel + '.'; }
+  }
+  $('res').innerHTML = html;
+}
+function renderStatus() {
+  const mode = P.mode, tr = P.type === 'trans'; let s = '';
+  if (mode === 'single') s = tr ? 'Εγκάρσιο κύμα: τα σωματίδια ταλαντώνονται κάθετα στη διεύθυνση διάδοσης (πάνω–κάτω), ενώ το σχήμα του κύματος κινείται προς τα ' + (P.dir > 0 ? 'δεξιά' : 'αριστερά') + '. Κανένα σωματίδιο δεν μετακινείται μαζί με το κύμα.'
+    : 'Διαμήκες κύμα: τα σωματίδια ταλαντώνονται παράλληλα στη διεύθυνση διάδοσης και δημιουργούνται πυκνώσεις και αραιώσεις που κινούνται προς τα ' + (P.dir > 0 ? 'δεξιά' : 'αριστερά') + '. Ένα σωματίδιο εκτελεί μόνο ταλάντωση γύρω από τη θέση ισορροπίας του.';
+  else if (mode === 'interf') s = 'Συμβολή (αρχή της επαλληλίας): η απομάκρυνση κάθε σωματιδίου είναι το άθροισμα των απομακρύνσεων που θα είχε από κάθε κύμα χωριστά. Δες τις διακεκομμένες συνιστώσες ξ₁, ξ₂ και το συνολικό κύμα.' + (tr ? '' : ' Στο διαμήκες κύμα το άθροισμα φαίνεται ως πυκνώσεις και αραιώσεις στη λωρίδα.');
+  else s = 'Στάσιμο κύμα: προκύπτει από τη συμβολή δύο κυμάτων ίδιου πλάτους και συχνότητας με αντίθετη φορά διάδοσης (π.χ. προσπίπτον και ανακλώμενο). Τα σημεία των δεσμών μένουν ακίνητα και οι κοιλίες ταλαντώνονται με πλάτος 2A· το σχήμα δεν διαδίδεται. Στο x = 0 υπάρχει ' + (P.bc === 'node' ? 'δεσμός (ακλόνητο άκρο: το ανακλώμενο κύμα αλλάζει φάση κατά π).' : 'κοιλία (ελεύθερο άκρο: το ανακλώμενο κύμα δεν αλλάζει φάση).');
+  if (!tr && KATOT > 0.95) s += ' <span class="warn">Το πλάτος είναι πολύ μεγάλο για το συγκεκριμένο λ.</span>';
+  $('status').innerHTML = s; $('gtitle').textContent = P.gmode === 't' ? 'Γραφήματα συναρτήσει του χρόνου, για τα επιλεγμένα σωματίδια' : 'Γραφήματα συναρτήσει της θέσης, στιγμιότυπο τη χρονική στιγμή t = ' + fx(t, 2) + ' s';
+}
+
+/* ---------- χειριστήρια ---------- */
+const fields = {};
+function numField(key, label, min, max, step, unit, dec, host) {
+  const r = h('input', { type: 'range', min: min, max: max, step: step }), n = h('input', { type: 'number', min: min, max: max, step: step });
+  const set = v => { v = Number(v); if (!isFinite(v)) v = P[key]; v = clamp(v, +min, +max); P[key] = v; r.value = v; if (document.activeElement !== n) n.value = v.toFixed(dec); refresh(); };
+  r.oninput = () => set(r.value); n.onchange = () => { set(n.value); n.value = P[key].toFixed(dec); };
+  r.value = P[key]; n.value = Number(P[key]).toFixed(dec);
+  fields[key] = { r: r, n: n, dec: dec };
+  host.append(h('div', { class: 'nf' }, h('span', { class: 'nl' }, label), r, h('span', null, n, ' ', unit)));
+}
+function syncFields() { for (const k in fields) { const f = fields[k]; f.r.value = P[k]; if (document.activeElement !== f.n) f.n.value = Number(P[k]).toFixed(f.dec); } }
+function applyVis() {
+  const m = P.mode;
+  $('p2panel').classList.toggle('hide', m === 'single'); $('fwave2').classList.toggle('hide', m !== 'interf'); $('rowdir2').classList.toggle('hide', m !== 'interf'); $('rowbc').classList.toggle('hide', m !== 'stand');
+  $('p2title').textContent = m === 'stand' ? 'Ανάκλαση στο x = 0' : 'Δεύτερο κύμα';
+}
+function refresh() { updComps(); applyVis(); renderInfo(); renderStatus(); }
+numField('A', 'Πλάτος A', 0.05, 1, 0.01, 'm', 2, $('fwave'));
+numField('f', 'Συχνότητα f', 0.2, 3, 0.05, 'Hz', 2, $('fwave'));
+numField('lam', 'Μήκος κύματος λ', 1, 5, 0.05, 'm', 2, $('fwave'));
+numField('phi', 'Αρχική φάση φ₀', -180, 180, 5, '°', 0, $('fwave'));
+numField('A2', 'Πλάτος A₂', 0, 1, 0.01, 'm', 2, $('fwave2'));
+numField('f2', 'Συχνότητα f₂', 0.2, 3, 0.05, 'Hz', 2, $('fwave2'));
+numField('phi2', 'Αρχική φάση φ₂', -180, 180, 5, '°', 0, $('fwave2'));
+numField('x1', 'Θέση x₁', 0, 10, 0.05, 'm', 2, $('fpart'));
+numField('x2', 'Θέση x₂', 0, 10, 0.05, 'm', 2, $('fpart2'));
+const updTwo = () => { $('fpart2').classList.toggle('hide', !P.two); };
+$('two').onchange = () => { P.two = $('two').checked; updTwo(); refresh(); }; updTwo();
+$('type').onchange = () => { P.type = $('type').value; refresh(); };
+$('mode').onchange = () => { P.mode = $('mode').value; if (P.mode === 'interf') { P.A2 = P.A; P.f2 = P.f; P.phi2 = 0; P.dir2 = P.dir; $('dir2').value = String(P.dir2); syncFields(); } refresh(); };
+$('dir2').onchange = () => { P.dir2 = +$('dir2').value; refresh(); };
+$('bc').onchange = () => { P.bc = $('bc').value; refresh(); };
+$('dir').onchange = () => { P.dir = +$('dir').value; refresh(); };
+$('gmode').onchange = () => { P.gmode = $('gmode').value; refresh(); };
+$('play').onclick = () => { playing = !playing; $('play').textContent = playing ? '⏸ Παύση' : '▶ Συνέχεια'; };
+$('rew').onclick = () => { t = 0; refresh(); };
+['tV', 'tA', 'tL', 'tC'].forEach(id => $(id).onchange = () => {});
+let dragSel = 1;
+function ptrX(ev) { const r = cv.getBoundingClientRect(); return clamp(((ev.clientX - r.left) * CW / r.width - X0) / SX, 0, XMAX); }
+cv.addEventListener('pointerdown', ev => { const x = ptrX(ev); dragSel = (P.two && Math.abs(x - P.x2) < Math.abs(x - P.x1)) ? 2 : 1; try { cv.setPointerCapture(ev.pointerId); } catch (e) {} P[dragSel === 1 ? 'x1' : 'x2'] = Math.round(x * 20) / 20; cvDrag = true; syncFields(); refresh(); });
+let cvDrag = false;
+cv.addEventListener('pointermove', ev => { if (!cvDrag) return; P[dragSel === 1 ? 'x1' : 'x2'] = Math.round(ptrX(ev) * 20) / 20; syncFields(); refresh(); });
+const endD = () => { cvDrag = false; }; cv.addEventListener('pointerup', endD); cv.addEventListener('pointercancel', endD);
+
+/* ---------- βρόχος ---------- */
+let last = performance.now(), lastInfo = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (playing) { t += dt * (+$('speed').value); }
+  $('tlab').textContent = 't = ' + fx(t, 2) + ' s';
+  if (now - lastInfo > 120) { lastInfo = now; renderInfo(); if (P.gmode === 'x') renderStatus(); }
+  drawScene(); drawGraphs();
+  requestAnimationFrame(frame);
+}
+refresh();
+window.__k = { P: P, get CS() { return CS; }, env: env, standPts: standPts, xiF: xiF, uF: uF, aF: aF, get t() { return t; }, set t(v) { t = v; }, setPlaying: v => { playing = v; }, refresh: refresh, syncFields: syncFields };
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
