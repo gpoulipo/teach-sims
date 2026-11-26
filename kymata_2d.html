@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Κύματα σε δύο διαστάσεις: συμβολή, στάσιμα, σχήματα Chladni</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:system-ui,"Segoe UI",Roboto,Arial,sans-serif;margin:0;background:#f4f6f9;color:#1d2433}
+  .wrap{max-width:1400px;margin:0 auto;padding:16px}
+  h1{font-size:20px;margin:0 0 10px}
+  canvas{width:100%;height:auto;background:#fff;border:1px solid #d5dbe5;border-radius:10px;display:block}
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:12px;align-items:start}
+  .col{min-width:0}
+  .col > * + *{margin-top:10px}
+  @media (max-width:1000px){.grid{grid-template-columns:minmax(0,1fr)}}
+  .panel{background:#fff;border:1px solid #d5dbe5;border-radius:10px;padding:10px 12px}
+  .panel h2{font-size:14px;margin:0 0 8px;color:#34425a}
+  .row{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+  .row + .row{margin-top:8px}
+  label{font-size:14px;display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 8px;max-width:100%}
+  select{font:inherit;font-size:14px;padding:5px 8px;border-radius:6px;border:1px solid #9aa6ba;background:#fff;max-width:100%;min-width:0}
+  button.b{font:inherit;font-size:14px;padding:7px 14px;border-radius:8px;border:1px solid #9aa6ba;background:#f0f3f8;cursor:pointer}
+  button.b:hover{background:#e3e9f3}
+  button.primary{background:#2b6cb0;border-color:#2b6cb0;color:#fff}
+  button.primary:hover{background:#245a93}
+  input[type=range]{min-width:0}
+  .nf{display:grid;grid-template-columns:112px minmax(0,1fr) 84px;gap:6px 8px;align-items:center;font-size:13px}
+  .nf + .nf{margin-top:6px}
+  .nf .nl{color:#34425a}
+  .nf input[type=number]{font:inherit;font-size:13px;width:100%;padding:4px 6px;border:1px solid #9aa6ba;border-radius:6px;background:#fff}
+  .hint{font-size:12px;color:#5b667a;margin-top:6px;line-height:1.45}
+  .hide{display:none!important}
+  #status{font-size:14px;color:#2f3c55;line-height:1.5;background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 12px;min-height:40px}
+  .formula{font-family:Georgia,"Times New Roman",serif;font-size:15px;background:#f6f8fc;border:1px solid #e0e6f0;border-radius:8px;padding:6px 10px;margin-top:8px;line-height:1.7}
+  table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+  th,td{border-bottom:1px solid #e3e8f0;padding:5px 8px;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  th{color:#5b667a;font-weight:600}
+  .res{margin-top:10px;font-size:14px;line-height:1.6}
+  .note{font-size:13px;color:#46536b;line-height:1.55;background:#fff;border:1px solid #d5dbe5;border-radius:8px;padding:8px 12px}
+  .tgl{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+  .tl{font-variant-numeric:tabular-nums;font-weight:600;color:#1f4f8f;min-width:70px}
+  canvas#cv{cursor:crosshair;touch-action:none}
+  .tr{display:flex;align-items:center;gap:10px;margin-top:8px}
+  .tr input{flex:1}
+  .emb h1{display:none}
+  .emb body{background:transparent}
+  .emb .wrap{padding:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Κύματα σε δύο διαστάσεις: συμβολή, στάσιμα, σχήματα Chladni</h1>
+  <div class="grid">
+    <div class="col">
+      <canvas id="cv"></canvas>
+      <div class="panel">
+        <div class="row">
+          <button class="b primary" id="play">⏸ Παύση</button>
+          <button class="b" id="rew" title="Επιστροφή στο t = 0">⏮ t = 0</button>
+          <label>Ταχύτητα
+            <select id="speed"><option value="0.1">0,1×</option><option value="0.25">0,25×</option><option value="0.5" selected>0,5×</option><option value="1">1×</option><option value="2">2×</option></select>
+          </label>
+          <span class="tl" id="tlab">t = 0 s</span>
+        </div>
+        <div class="tr"><span class="hint" style="margin:0">t</span><input type="range" id="tsl" min="0" max="40" step="0.02" value="0"></div>
+        <div class="row">
+          <div class="tgl">
+            <label><input type="checkbox" id="tN" checked> Γραμμές δεσμών / ενίσχυσης</label>
+            <label id="lDist"><input type="checkbox" id="tD" checked> Αποστάσεις r₁, r₂ από τις πηγές</label>
+          </div>
+        </div>
+        <div class="hint">Κάνε κλικ ή σύρε πάνω στην επιφάνεια για να μετακινήσεις το σημείο παρατήρησης P.</div>
+      </div>
+      <div id="status"></div>
+      <div class="panel">
+        <h2 id="g1t">Ταλάντωση του σημείου P συναρτήσει του χρόνου</h2>
+        <canvas id="g1"></canvas>
+        <h2 id="g2t" style="margin-top:12px">Πλάτος ταλάντωσης κατά μήκος της ευθείας που περνά από το P</h2>
+        <canvas id="g2"></canvas>
+      </div>
+    </div>
+    <div class="col">
+      <div class="panel">
+        <h2>Είδος προσομοίωσης</h2>
+        <div class="row"><label>Λειτουργία
+          <select id="mode">
+            <option value="ripple">Συμβολή από δύο πηγές (επιφάνεια υγρού)</option>
+            <option value="modes">Στάσιμα σε ορθογώνια επιφάνεια</option>
+            <option value="chladni">Σχήματα Chladni (τετραγωνική μεμβράνη, άμμος)</option>
+          </select></label></div>
+        <div class="formula" id="formula"></div>
+      </div>
+      <div class="panel">
+        <h2>Χαρακτηριστικά</h2>
+        <div id="fcommon"></div>
+        <div id="fripple"></div>
+        <div id="fmodes"></div>
+        <div id="fchl" class="hide"></div>
+        <div class="row hide" id="rowSand" style="margin-top:8px"><label><input type="checkbox" id="tS" checked> Άμμος</label><label><input type="checkbox" id="tF" checked> Χρωματισμός ξ</label><button class="b" id="rsand">Ανακάτεμα άμμου</button></div>
+        <div class="row hide" id="rowAtt" style="margin-top:8px"><label><input type="checkbox" id="atten" checked> Εξασθένηση πλάτους με την απόσταση (∝ 1/√r)</label></div>
+        <div class="hint" id="phint"></div>
+      </div>
+      <div class="panel">
+        <h2>Μεγέθη και αποτέλεσμα στο σημείο P</h2>
+        <div id="tbl"></div>
+        <div class="res" id="res"></div>
+      </div>
+    </div>
+  </div>
+  <div class="note" style="margin-top:12px">
+    Μπλε χρώμα σημαίνει θετική απομάκρυνση (ύψος πάνω από την ισορροπία), πορτοκαλί αρνητική, και σχεδόν λευκό απομάκρυνση κοντά στο μηδέν. Στη συμβολή οι δύο πηγές είναι σύμφωνες (ίδια συχνότητα, σταθερή διαφορά φάσης) και το μέσο κοινό, άρα υ = λ·f για και τα δύο κύματα. Τα κύματα ξεκινούν τη χρονική στιγμή t = 0 και απλώνονται κυκλικά με ταχύτητα υ. Στα στάσιμα και στα σχήματα Chladni η ταχύτητα διάδοσης είναι σταθερή (υ = 4 m/s), οι πλευρές θεωρούνται ακλόνητα άκρα και η συχνότητα προκύπτει από τις ακέραιες τιμές m, n.
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const TWO = 2 * Math.PI, RAD = Math.PI / 180;
+const fx = (v, d = 2) => { if (Math.abs(v) < 0.5 * Math.pow(10, -d)) v = 0; return v.toFixed(d).replace('.', ',').replace(/^-/, '−'); };
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const sm = u => u * u * (3 - 2 * u);
+const P = { mode: 'ripple', A: 5, f: 1, lam: 1.5, d: 4, dphi: 0, atten: true, m: 3, n: 2, th: 45, sand: true, field: true, px: 2.5, py: 2.5, showN: true, showD: true };
+const DW = 16, DH = 10, Y0 = -3.5, LX = 12, LY = 8, VM = 4, R0 = 2, LC = 8;
+const dimX = () => P.mode === 'chladni' ? LC : LX, dimY = () => P.mode === 'chladni' ? LC : LY;
+let t = 0, playing = true, speedF = 0.5;
+const fields = {};
+function h(tag, attrs, ...kids) { const e = document.createElement(tag); if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]); kids.forEach(c => e.append(c)); return e; }
+
+/* ---------- φυσική ---------- */
+const vph = () => P.lam * P.f;
+const S = () => [{ x: -P.d / 2, y: Y0, ph: 0 }, { x: P.d / 2, y: Y0, ph: P.dphi * RAD }];
+const ampR = r => P.atten ? 1 / Math.sqrt(Math.max(r, R0) / R0) : 1;
+const fM = () => P.mode === 'chladni' ? 0.5 * VM * Math.sqrt(P.m * P.m + P.n * P.n) / LC : 0.5 * VM * Math.sqrt((P.m / LX) * (P.m / LX) + (P.n / LY) * (P.n / LY));
+let PSMAX = 1;
+function psiRaw(x, y) {
+  const lx = dimX(), ly = dimY(), u = x + lx / 2, w = y + ly / 2; if (u < 0 || u > lx || w < 0 || w > ly) return 0;
+  const a = Math.sin(P.m * Math.PI * u / lx) * Math.sin(P.n * Math.PI * w / ly);
+  if (P.mode === 'modes' || P.m === P.n) return a;
+  const b = Math.sin(P.n * Math.PI * u / lx) * Math.sin(P.m * Math.PI * w / ly);
+  return Math.cos(P.th * RAD) * a + Math.sin(P.th * RAD) * b;
+}
+function updPS() { PSMAX = 1; if (P.mode !== 'chladni') return; let mx = 1e-9; for (let i = 0; i <= 64; i++) for (let j = 0; j <= 64; j++) mx = Math.max(mx, Math.abs(psiRaw(-LC / 2 + LC * i / 64, -LC / 2 + LC * j / 64))); PSMAX = mx; }
+const psiN = (x, y) => psiRaw(x, y) / PSMAX;
+function comp(i, x, y, tt) { // συνιστώσα πηγής i
+  const s = S()[i], r = Math.hypot(x - s.x, y - s.y), k = TWO / P.lam;
+  const e = sm(clamp((vph() * tt - r) / P.lam, 0, 1));
+  return P.A * ampR(r) * e * Math.sin(TWO * P.f * tt - k * r + s.ph);
+}
+function modeXi(x, y, tt) { return P.A * psiN(x, y) * Math.cos(TWO * fM() * tt); }
+function xi(x, y, tt) { return P.mode === 'ripple' ? comp(0, x, y, tt) + comp(1, x, y, tt) : modeXi(x, y, tt); }
+function ampAt(x, y) { // πλάτος μόνιμης κατάστασης
+  if (P.mode !== 'ripple') return P.A * Math.abs(psiN(x, y));
+  let re = 0, im = 0; const k = TWO / P.lam;
+  S().forEach(s => { const r = Math.hypot(x - s.x, y - s.y), a = P.A * ampR(r); re += a * Math.cos(-k * r + s.ph); im += a * Math.sin(-k * r + s.ph); });
+  return Math.hypot(re, im);
+}
+
+/* ---------- καμβάδες ---------- */
+const cv = $('cv'), g = cv.getContext('2d'), g1 = $('g1'), c1 = g1.getContext('2d'), g2 = $('g2'), c2 = g2.getContext('2d');
+let CW = 800, CH = 500, DPR = 1, SC = 50;
+const off = document.createElement('canvas'), GW = 400, GH = 250; off.width = GW; off.height = GH;
+const og = off.getContext('2d'), img = og.createImageData(GW, GH);
+function fit() {
+  const w = Math.max(280, cv.parentElement.clientWidth); DPR = Math.min(2, window.devicePixelRatio || 1);
+  CW = w; CH = w * DH / DW; SC = CW / DW;
+  cv.width = Math.round(CW * DPR); cv.height = Math.round(CH * DPR);
+  [g1, g2].forEach(c => { c.width = Math.round(CW * DPR); c.height = Math.round(CW * 0.3 * DPR); });
+}
+const X = x => (x + DW / 2) * SC, Y = y => (DH / 2 - y) * SC;
+const W2X = px => px / SC - DW / 2, W2Y = py => DH / 2 - py / SC;
+
+function nodalPix(x, y) { const a = psiN(x, y), b = psiN(x + DW / GW, y), c = psiN(x, y - DH / GH); return a * b < 0 || a * c < 0 || Math.abs(a) < 1e-3; }
+function drawField() {
+  const d = img.data, bg = [250, 251, 253], pos = [43, 108, 223], neg = [226, 122, 32], gain = P.mode === 'ripple' ? 1 / (2 * P.A) : 1 / P.A;
+  const outside = [236, 239, 244];
+  for (let j = 0; j < GH; j++) {
+    const y = DH / 2 - (j + 0.5) * DH / GH;
+    for (let i = 0; i < GW; i++) {
+      const x = -DW / 2 + (i + 0.5) * DW / GW, o = 4 * (j * GW + i);
+      if (P.mode !== 'ripple' && (Math.abs(x) > dimX() / 2 || Math.abs(y) > dimY() / 2)) { d[o] = outside[0]; d[o + 1] = outside[1]; d[o + 2] = outside[2]; d[o + 3] = 255; continue; }
+      if (P.mode === 'chladni' && !P.field) { const q = P.showN && nodalPix(x, y); d[o] = q ? 190 : 247; d[o + 1] = q ? 40 : 244; d[o + 2] = q ? 40 : 236; d[o + 3] = 255; continue; }
+      const s = clamp(xi(x, y, t) * gain, -1, 1), c = s >= 0 ? pos : neg, a = Math.abs(s);
+      d[o] = bg[0] + (c[0] - bg[0]) * a; d[o + 1] = bg[1] + (c[1] - bg[1]) * a; d[o + 2] = bg[2] + (c[2] - bg[2]) * a; d[o + 3] = 255;
+      if (P.mode === 'chladni' && P.showN && nodalPix(x, y)) { d[o] = 190; d[o + 1] = 40; d[o + 2] = 40; }
+    }
+  }
+  og.putImageData(img, 0, 0);
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  g.clearRect(0, 0, CW, CH); g.drawImage(off, 0, 0, CW, CH);
+}
+function txt(c, s, x, y, col, size, al, wt) { c.fillStyle = col; c.font = (wt || 400) + ' ' + size + 'px system-ui,Arial'; c.textAlign = al || 'left'; c.textBaseline = 'middle'; c.fillText(s, x, y); }
+function hyper(cc, col) {
+  const a = cc / 2, b2 = P.d * P.d / 4 - a * a; if (b2 <= 0) return; const b = Math.sqrt(b2);
+  g.beginPath(); let first = true;
+  for (let u = -3.2; u <= 3.2; u += 0.05) { const x = a * Math.cosh(u), y = Y0 + b * Math.sinh(u); if (first) { g.moveTo(X(x), Y(y)); first = false; } else g.lineTo(X(x), Y(y)); }
+  g.strokeStyle = col; g.stroke();
+}
+function drawOverlay() {
+  g.save(); g.beginPath(); g.rect(0, 0, CW, CH); g.clip();
+  if (P.mode === 'ripple') {
+    const ss = S();
+    if (P.showN) {
+      g.lineWidth = 1.5; g.setLineDash([6, 4]);
+      const del = (P.dphi / 360), nmax = Math.ceil(P.d / P.lam) + 2;
+      for (let n = -nmax; n <= nmax; n++) {
+        hyper((n + 0.5 - del) * P.lam, 'rgba(190,40,40,.9)');   // απόσβεση (δεσμικές)
+        hyper((n - del) * P.lam, 'rgba(20,130,70,.9)');          // ενίσχυση
+      }
+      g.setLineDash([]);
+    }
+    ss.forEach((s, i) => { g.beginPath(); g.arc(X(s.x), Y(s.y), 7, 0, TWO); g.fillStyle = '#1d2433'; g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 2; g.stroke(); txt(g, 'S' + (i ? '₂' : '₁'), X(s.x), Y(s.y) + 19, '#1d2433', 13, 'center', 700); });
+    if (P.showD) {
+      ss.forEach((s, i) => {
+        g.beginPath(); g.moveTo(X(s.x), Y(s.y)); g.lineTo(X(P.px), Y(P.py)); g.strokeStyle = i ? '#a15c10' : '#245a93'; g.lineWidth = 1.5; g.setLineDash([4, 3]); g.stroke(); g.setLineDash([]);
+        const r = Math.hypot(P.px - s.x, P.py - s.y), mx = (X(s.x) + X(P.px)) / 2, my = (Y(s.y) + Y(P.py)) / 2;
+        g.save(); g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(mx - 38, my - 10, 76, 18); g.restore();
+        txt(g, 'r' + (i ? '₂' : '₁') + ' = ' + fx(r, 2) + ' m', mx, my, i ? '#a15c10' : '#245a93', 12, 'center', 700);
+      });
+    }
+  } else {
+    g.strokeStyle = '#1d2433'; g.lineWidth = 2.5; g.strokeRect(X(-dimX() / 2), Y(dimY() / 2), dimX() * SC, dimY() * SC);
+    if (P.mode === 'chladni' && P.sand) { g.fillStyle = '#3b2a10'; for (let i = 0; i < SX.length; i++) g.fillRect(X(SX[i]) - 1, Y(SY[i]) - 1, 2.2, 2.2); }
+    if (P.showN && P.mode === 'modes') {
+      g.lineWidth = 1.8; g.setLineDash([6, 4]); g.strokeStyle = 'rgba(190,40,40,.95)';
+      for (let i = 1; i < P.m; i++) { const x = -LX / 2 + i * LX / P.m; g.beginPath(); g.moveTo(X(x), Y(LY / 2)); g.lineTo(X(x), Y(-LY / 2)); g.stroke(); }
+      for (let j = 1; j < P.n; j++) { const y = -LY / 2 + j * LY / P.n; g.beginPath(); g.moveTo(X(-LX / 2), Y(y)); g.lineTo(X(LX / 2), Y(y)); g.stroke(); }
+      g.setLineDash([]);
+    }
+  }
+  g.beginPath(); g.arc(X(P.px), Y(P.py), 6, 0, TWO); g.fillStyle = '#fff'; g.fill(); g.strokeStyle = '#000'; g.lineWidth = 2.5; g.stroke();
+  g.beginPath(); g.arc(X(P.px), Y(P.py), 2.2, 0, TWO); g.fillStyle = '#000'; g.fill();
+  txt(g, 'P', X(P.px) + 11, Y(P.py) - 11, '#000', 14, 'left', 700);
+  // υπόμνημα
+  g.fillStyle = 'rgba(255,255,255,.88)'; g.fillRect(8, 8, P.mode === 'ripple' ? 196 : 170, P.showN ? (P.mode === 'ripple' ? 58 : 44) : 24);
+  const cs = g.createLinearGradient(14, 0, 74, 0); cs.addColorStop(0, '#e27a20'); cs.addColorStop(.5, '#fafbfd'); cs.addColorStop(1, '#2b6cb0'); g.fillStyle = cs; g.fillRect(14, 14, 60, 10); g.strokeStyle = '#9aa6ba'; g.lineWidth = 1; g.strokeRect(14, 14, 60, 10);
+  txt(g, '− ξ +', 80, 19, '#34425a', 12);
+  if (P.showN) {
+    if (P.mode === 'ripple') {
+      g.setLineDash([6, 4]); g.lineWidth = 2; g.strokeStyle = '#be2828'; g.beginPath(); g.moveTo(14, 38); g.lineTo(44, 38); g.stroke(); g.strokeStyle = '#148246'; g.beginPath(); g.moveTo(14, 55); g.lineTo(44, 55); g.stroke(); g.setLineDash([]);
+      txt(g, 'καταστρεπτική συμβολή', 50, 38, '#34425a', 12); txt(g, 'ενισχυτική συμβολή', 50, 55, '#34425a', 12);
+    } else { g.setLineDash(P.mode === 'chladni' ? [] : [6, 4]); g.lineWidth = 2; g.strokeStyle = '#be2828'; g.beginPath(); g.moveTo(14, 38); g.lineTo(44, 38); g.stroke(); g.setLineDash([]); txt(g, 'δεσμικές γραμμές', 50, 38, '#34425a', 12); }
+  }
+  g.restore();
+}
+
+/* ---------- άμμος ---------- */
+const NS = 7000, SX = new Float32Array(NS), SY = new Float32Array(NS);
+function resetSand() { for (let i = 0; i < NS; i++) { SX[i] = (Math.random() - 0.5) * LC; SY[i] = (Math.random() - 0.5) * LC; } }
+function stepSand() {
+  for (let k = 0; k < 3; k++) for (let i = 0; i < NS; i++) {
+    const a = Math.abs(psiN(SX[i], SY[i])), st = 0.6 * a;
+    SX[i] = clamp(SX[i] + (Math.random() - 0.5) * 2 * st, -LC / 2, LC / 2); SY[i] = clamp(SY[i] + (Math.random() - 0.5) * 2 * st, -LC / 2, LC / 2);
+  }
+}
+resetSand();
+
+/* ---------- γραφήματα ---------- */
+function ticks(lo, hi, n) { const raw = (hi - lo) / n, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p, st = (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p, a = []; for (let v = Math.ceil(lo / st - 1e-9) * st; v <= hi + 1e-9; v += st) a.push(Math.abs(v) < 1e-12 ? 0 : v); return a; }
+function plot(cvs, c, series, x0, x1, y0, y1, xl, yl, mark, tdec) {
+  const w = CW, hh = CW * 0.3; c.setTransform(DPR, 0, 0, DPR, 0, 0); c.clearRect(0, 0, w, hh);
+  const L = 58, R = 14, T = 14, B = 34, pw = w - L - R, ph = hh - T - B, px = v => L + (v - x0) / (x1 - x0) * pw, py = v => T + (y1 - v) / (y1 - y0) * ph;
+  c.fillStyle = '#f9fbfd'; c.fillRect(L, T, pw, ph); c.font = '12px system-ui,Arial';
+  ticks(y0, y1, 4).forEach(v => { c.strokeStyle = v === 0 ? '#9aa6ba' : '#e3e8f0'; c.lineWidth = 1; c.beginPath(); c.moveTo(L, py(v)); c.lineTo(L + pw, py(v)); c.stroke(); txt(c, fx(v, v !== Math.round(v) ? (Math.abs(v) < 1 ? 2 : 1) : 0), L - 6, py(v), '#5b667a', 11, 'right'); });
+  ticks(x0, x1, Math.max(3, Math.round(pw / 90))).forEach(v => { c.strokeStyle = '#eef1f6'; c.beginPath(); c.moveTo(px(v), T); c.lineTo(px(v), T + ph); c.stroke(); txt(c, fx(v, tdec), px(v), T + ph + 12, '#5b667a', 11, 'center'); });
+  txt(c, xl, L + pw, hh - 7, '#34425a', 12, 'right', 600); txt(c, yl, 6, T + 2, '#34425a', 12, 'left', 600);
+  c.save(); c.beginPath(); c.rect(L, T, pw, ph); c.clip();
+  series.forEach(s => {
+    c.beginPath(); const N = 320; for (let i = 0; i <= N; i++) { const x = x0 + (x1 - x0) * i / N, y = s.f(x); i ? c.lineTo(px(x), py(y)) : c.moveTo(px(x), py(y)); }
+    c.strokeStyle = s.col; c.lineWidth = s.lw || 2; c.setLineDash(s.dash || []); c.stroke(); c.setLineDash([]);
+  });
+  if (mark) { c.strokeStyle = '#5b667a'; c.lineWidth = 1.2; c.setLineDash([4, 3]); c.beginPath(); c.moveTo(px(mark.x), T); c.lineTo(px(mark.x), T + ph); c.stroke(); c.setLineDash([]); if (mark.y !== undefined) { c.beginPath(); c.arc(px(mark.x), py(mark.y), 5, 0, TWO); c.fillStyle = '#111'; c.fill(); } }
+  c.restore();
+  let lx = L + 8; (series.filter(s => s.name)).forEach(s => { c.strokeStyle = s.col; c.lineWidth = 2.5; c.setLineDash(s.dash || []); c.beginPath(); c.moveTo(lx, T + 12); c.lineTo(lx + 22, T + 12); c.stroke(); c.setLineDash([]); txt(c, s.name, lx + 27, T + 12, '#34425a', 12); lx += 40 + s.name.length * 7; });
+}
+function drawGraphs() {
+  const T = 1 / (P.mode === 'ripple' ? P.f : fM()), Tw = 4 * T, s0 = Math.max(0, t - 0.75 * Tw), s1 = s0 + Tw;
+  const pxx = P.px, pyy = P.py;
+  if (P.mode === 'ripple') {
+    const ss = S(), bnd = ss.reduce((a, s) => a + P.A * ampR(Math.hypot(pxx - s.x, pyy - s.y)), 0) * 1.15 + 0.05;
+    plot(g1, c1, [
+      { f: tt => comp(0, pxx, pyy, tt), col: '#2b6cb0', dash: [5, 3], lw: 1.6, name: 'ξ₁' },
+      { f: tt => comp(1, pxx, pyy, tt), col: '#e27a20', dash: [5, 3], lw: 1.6, name: 'ξ₂' },
+      { f: tt => xi(pxx, pyy, tt), col: '#1d2433', lw: 2.6, name: 'ξ = ξ₁ + ξ₂' }
+    ], s0, s1, -bnd, bnd, 't (s)', 'ξ (mm)', { x: t, y: xi(pxx, pyy, t) }, 1);
+    plot(g2, c2, [{ f: x => ampAt(x, pyy), col: '#148246', lw: 2.6, name: 'πλάτος A(x)' }], -DW / 2, DW / 2, 0, 2 * P.A * 1.08, 'x (m)', 'A (mm)', { x: pxx, y: ampAt(pxx, pyy) }, 0);
+  } else {
+    plot(g1, c1, [{ f: tt => modeXi(pxx, pyy, tt), col: '#1d2433', lw: 2.6, name: 'ξ(P)' }], s0, s1, -P.A * 1.15, P.A * 1.15, 't (s)', 'ξ (mm)', { x: t, y: modeXi(pxx, pyy, t) }, 1);
+    plot(g2, c2, [{ f: x => ampAt(x, pyy), col: '#148246', lw: 2.6, name: 'πλάτος A(x)' }], -DW / 2, DW / 2, 0, P.A * 1.15, 'x (m)', 'A (mm)', { x: pxx, y: ampAt(pxx, pyy) }, 0);
+  }
+  $('g2t').textContent = 'Πλάτος ταλάντωσης κατά μήκος της ευθείας y = ' + fx(pyy, 2) + ' m (μόνιμη κατάσταση)';
+}
+
+/* ---------- κείμενα ---------- */
+function phiTxt(deg) { const f = [[0, '0'], [30, 'π/6'], [45, 'π/4'], [60, 'π/3'], [90, 'π/2'], [120, '2π/3'], [135, '3π/4'], [150, '5π/6'], [180, 'π']]; const a = Math.abs(deg); for (const e of f) if (Math.abs(a - e[0]) < 1e-6) return (deg < 0 && a ? '−' : '') + e[1] + ' rad'; return fx(deg * RAD, 2) + ' rad'; }
+let lastInfo = 0;
+function renderInfo() {
+  const x = P.px, y = P.py;
+  if (P.mode === 'ripple') {
+    const ss = S(), r1 = Math.hypot(x - ss[0].x, y - ss[0].y), r2 = Math.hypot(x - ss[1].x, y - ss[1].y), dr = Math.abs(r1 - r2), k = TWO / P.lam;
+    $('formula').innerHTML = 'ξ₁ = A·ημ(2π(f·t − r₁/λ))<br>ξ₂ = A·ημ(2π(f·t − r₂/λ) + Δφ)<br>ξ = ξ₁ + ξ₂';
+    $('phint').textContent = 'Δφ = φ₂ − φ₁ = ' + fx(P.dphi, 0) + '° = ' + phiTxt(P.dphi) + '. Η ταχύτητα διάδοσης είναι υ = λ·f = ' + fx(vph(), 2) + ' m/s και έχει την ίδια τιμή και για τις δύο πηγές. Η Δφ ορίζει πόσο μετατοπίζονται οι γραμμές ενίσχυσης και απόσβεσης.';
+    let dtot = (k * (r1 - r2) + P.dphi * RAD) % TWO; if (dtot > Math.PI) dtot -= TWO; if (dtot < -Math.PI) dtot += TWO;
+    const Atot = ampAt(x, y), a1 = P.A * ampR(r1), a2 = P.A * ampR(r2);
+    $('tbl').innerHTML = '<table><thead><tr><th>Μέγεθος</th><th>Τιμή</th></tr></thead><tbody>' + [
+      ['Περίοδος T = 1/f', fx(1 / P.f, 3) + ' s'], ['Ταχύτητα διάδοσης υ = λ·f', fx(vph(), 3) + ' m/s'],
+      ['Απόσταση r₁ από την S₁', fx(r1, 3) + ' m'], ['Απόσταση r₂ από την S₂', fx(r2, 3) + ' m'],
+      ['Διαφορά αποστάσεων Δr = |r₁ − r₂|', fx(dr, 3) + ' m'], ['Δr / λ', fx(dr / P.lam, 3)],
+      ['Διαφορά φάσης των κυμάτων στο P', fx(dtot / RAD, 1) + '°'], ['Πλάτος ταλάντωσης του P', fx(Atot, 3) + ' mm']
+    ].map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table>';
+    const m = Math.abs(dtot); let kind;
+    if (m < 0.06) kind = '<b>ενισχυτική συμβολή</b>: τα δύο κύματα φτάνουν στο P σε φάση'; else if (m > Math.PI - 0.06) kind = '<b>καταστρεπτική συμβολή</b>: τα δύο κύματα φτάνουν στο P σε αντίθεση φάσης'; else kind = 'ενδιάμεση περίπτωση (η συνολική διαφορά φάσης δεν είναι ούτε 0 ούτε π)';
+    let h = 'Στο P: Δr = ' + fx(dr / P.lam, 2) + '·λ → ' + kind + '.<br>';
+    h += 'Για Δφ = 0 η ενίσχυση απαιτεί Δr = n·λ και η απόσβεση Δr = (n + ½)·λ. Εδώ, με Δφ = ' + fx(P.dphi, 0) + '°, οι συνθήκες γίνονται r₁ − r₂ = (n − Δφ/360°)·λ για ενίσχυση και r₁ − r₂ = (n + ½ − Δφ/360°)·λ για απόσβεση.';
+    if (P.atten && Math.abs(a1 - a2) > 1e-3) h += '<br>Λόγω της εξασθένησης τα πλάτη A₁ = ' + fx(a1, 2) + ' mm και A₂ = ' + fx(a2, 2) + ' mm διαφέρουν, οπότε η απόσβεση δεν είναι ολική (Α = |A₁ − A₂|).';
+    $('res').innerHTML = h;
+  } else if (P.mode === 'modes') {
+    const f = fM(), E = ampAt(x, y), sx = Math.sin(P.m * Math.PI * (x + LX / 2) / LX), sy = Math.sin(P.n * Math.PI * (y + LY / 2) / LY);
+    $('formula').innerHTML = 'ξ(x,y,t) = A·ημ(mπx/L<sub>x</sub>)·ημ(nπy/L<sub>y</sub>)·συν(2πf<sub>mn</sub>t)<br>f<sub>mn</sub> = (υ/2)·√((m/L<sub>x</sub>)² + (n/L<sub>y</sub>)²)';
+    $('phint').textContent = 'Επιφάνεια Lₓ × Lᵧ = ' + LX + ' m × ' + LY + ' m, υ = ' + VM + ' m/s. Οι ακέραιοι m, n είναι ο αριθμός των «κοιλιών» κατά x και y.';
+    $('tbl').innerHTML = '<table><thead><tr><th>Μέγεθος</th><th>Τιμή</th></tr></thead><tbody>' + [
+      ['Συχνότητα ιδιομορφής f', fx(f, 3) + ' Hz'], ['Περίοδος T', fx(1 / f, 3) + ' s'],
+      ['Μήκος κύματος κατά x: 2Lₓ/m', fx(2 * LX / P.m, 3) + ' m'], ['Μήκος κύματος κατά y: 2Lᵧ/n', fx(2 * LY / P.n, 3) + ' m'],
+      ['Δεσμικές γραμμές κατά x (κατακόρυφες)', String(P.m - 1)], ['Δεσμικές γραμμές κατά y (οριζόντιες)', String(P.n - 1)],
+      ['Πλάτος ταλάντωσης του P', fx(E, 3) + ' mm']
+    ].map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table>';
+    let h = 'Το P ταλαντώνεται με πλάτος A·|ημ|·|ημ| = ' + fx(P.A, 2) + '·' + fx(Math.abs(sx), 3) + '·' + fx(Math.abs(sy), 3) + ' = <b>' + fx(E, 3) + ' mm</b>' + (E < 0.02 * P.A ? ' (πάνω σε δεσμική γραμμή: μένει ακίνητο)' : (E > 0.98 * P.A ? ' (κοιλία: μέγιστο πλάτος)' : '')) + '.<br>';
+    h += 'Όλα τα σημεία ανάμεσα σε διαδοχικές δεσμικές γραμμές ταλαντώνονται σε φάση, ενώ σημεία εκατέρωθεν μιας δεσμικής γραμμής ταλαντώνονται σε αντίθεση φάσης. Το σχήμα δεν διαδίδεται και δεν μεταφέρεται ενέργεια. Το κύμα αυτό προκύπτει από τη συμβολή τεσσάρων επίπεδων κυμάτων που ανακλώνται στις πλευρές.';
+    $('res').innerHTML = h;
+  } else {
+    const f = fM(), E = ampAt(x, y), deg = P.m !== P.n;
+    $('formula').innerHTML = deg ? 'ψ = συνθ·ημ(mπx/L)ημ(nπy/L) + ημθ·ημ(nπx/L)ημ(mπy/L)<br>ξ = A·ψ·συν(2πf t),  f = (υ/2L)·√(m² + n²)' : 'ξ = A·ημ(mπx/L)·ημ(mπy/L)·συν(2πf t),  f = (υ/2L)·√2·m';
+    $('phint').textContent = 'Τετραγωνική μεμβράνη πλευράς L = ' + LC + ' m, υ = ' + VM + ' m/s. Οι ιδιομορφές (m, n) και (n, m) έχουν την ίδια συχνότητα, άρα μπορούν να διεγερθούν ταυτόχρονα με οποιαδήποτε αναλογία: θ = 45° δίνει το άθροισμα, θ = −45° τη διαφορά, και οι ενδιάμεσες γωνίες μετατρέπουν συνεχώς το ένα σχήμα στο άλλο.' + (deg ? '' : ' Για m = n οι δύο ιδιομορφές συμπίπτουν, οπότε η γωνία θ δεν παίζει ρόλο.');
+    $('tbl').innerHTML = '<table><thead><tr><th>Μέγεθος</th><th>Τιμή</th></tr></thead><tbody>' + [
+      ['Ιδιομορφές που συνδυάζονται', deg ? '(' + P.m + ', ' + P.n + ') και (' + P.n + ', ' + P.m + ')' : '(' + P.m + ', ' + P.n + ')'],
+      ['Συχνότητα f', fx(f, 3) + ' Hz'], ['Περίοδος T', fx(1 / f, 3) + ' s'], ['Γωνία συνδυασμού θ', deg ? fx(P.th, 0) + '°' : '—'],
+      ['Πλάτος ταλάντωσης του P', fx(E, 3) + ' mm']
+    ].map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table>';
+    $('res').innerHTML = 'Η άμμος που ρίχνεται στη μεμβράνη μετακινείται από τις περιοχές που ταλαντώνονται προς τις δεσμικές γραμμές, όπου το πλάτος είναι μηδέν, και έτσι «ζωγραφίζει» τα σχήματα Chladni. Το P ταλαντώνεται με πλάτος <b>' + fx(E, 3) + ' mm</b>' + (E < 0.03 * P.A ? ' (σχεδόν πάνω σε δεσμική γραμμή)' : '') + '. Η μεμβράνη αυτή είναι ιδανική (ακλόνητα άκρα)· στις πραγματικές μεταλλικές πλάκες οι συχνότητες και τα σχήματα διαφέρουν κάπως.';
+  }
+  $('status').innerHTML = P.mode === 'chladni' ? 'Σχήματα Chladni: η μεμβράνη ταλαντώνεται ως συνδυασμός δύο ιδιομορφών με την ίδια συχνότητα. Οι κόκκοι άμμου κινούνται τυχαία με βήμα ανάλογο του τοπικού πλάτους, επομένως συσσωρεύονται εκεί που η μεμβράνη μένει ακίνητη, δηλαδή στις δεσμικές γραμμές. Δοκίμασε διαφορετικά (m, n) και άλλαξε τη γωνία θ.' : P.mode === 'ripple'
+    ? 'Συμβολή δύο σύμφωνων πηγών στην επιφάνεια υγρού: κατά μήκος των πράσινων υπερβολών τα κύματα ενισχύονται (η επιφάνεια ταλαντώνεται έντονα), ενώ κατά μήκος των κόκκινων αλληλοαναιρούνται. Οι γραμμές αυτές είναι σταθερές στο χώρο, αφού το αποτέλεσμα εξαρτάται μόνο από τη διαφορά των αποστάσεων r₁ − r₂.'
+    : 'Στάσιμο κύμα στο επίπεδο: η επιφάνεια ταλαντώνεται σε μία ιδιομορφή (m, n). Οι κόκκινες διακεκομμένες γραμμές είναι οι δεσμικές γραμμές, όπου η επιφάνεια μένει ακίνητη, ενώ οι περιοχές ανάμεσά τους αλλάζουν μπλε ↔ πορτοκαλί ταυτόχρονα, χωρίς να μετακινείται κανένα μέτωπο κύματος.';
+}
+
+/* ---------- χειριστήρια ---------- */
+function numField(key, label, min, max, step, unit, dec, host) {
+  const r = h('input', { type: 'range', min: min, max: max, step: step }), n = h('input', { type: 'number', min: min, max: max, step: step });
+  const set = v => { v = Number(v); if (!isFinite(v)) v = P[key]; v = clamp(v, +min, +max); P[key] = v; r.value = v; if (document.activeElement !== n) n.value = v.toFixed(dec); refresh(); };
+  r.oninput = () => set(r.value); n.onchange = () => { set(n.value); n.value = P[key].toFixed(dec); };
+  r.value = P[key]; n.value = Number(P[key]).toFixed(dec);
+  fields[key] = { r: r, n: n, dec: dec };
+  host.append(h('div', { class: 'nf' }, h('span', { class: 'nl' }, label), r, h('span', null, n, ' ', unit)));
+}
+function applyVis() {
+  const rp = P.mode === 'ripple';
+  const ch = P.mode === 'chladni'; $('fripple').classList.toggle('hide', !rp); $('fmodes').classList.toggle('hide', rp); $('fchl').classList.toggle('hide', !ch); $('rowSand').classList.toggle('hide', !ch); $('rowAtt').classList.toggle('hide', !rp); $('lDist').classList.toggle('hide', !rp);
+  $('tN').nextSibling.textContent = rp ? ' Γραμμές ενίσχυσης / απόσβεσης' : ' Δεσμικές γραμμές';
+  fields.m.r.max = fields.m.n.max = fields.n.r.max = fields.n.n.max = ch ? 10 : 8;
+  $('tsl').max = 40;
+}
+function limitProbe() { if (P.mode !== 'ripple') { P.px = clamp(P.px, -dimX() / 2, dimX() / 2); P.py = clamp(P.py, -dimY() / 2, dimY() / 2); } else { P.px = clamp(P.px, -DW / 2, DW / 2); P.py = clamp(P.py, -DH / 2, DH / 2); } }
+function refresh() { const mx = P.mode === 'chladni' ? 10 : 8; P.m = clamp(Math.round(P.m), 1, mx); P.n = clamp(Math.round(P.n), 1, mx); syncF(); updPS(); limitProbe(); applyVis(); renderInfo(); }
+numField('A', 'Πλάτος A', 1, 10, 0.5, 'mm', 1, $('fcommon'));
+numField('f', 'Συχνότητα f', 0.5, 2.5, 0.05, 'Hz', 2, $('fripple'));
+numField('lam', 'Μήκος κύματος λ', 0.6, 3, 0.05, 'm', 2, $('fripple'));
+numField('d', 'Απόσταση πηγών d', 0.5, 10, 0.1, 'm', 1, $('fripple'));
+numField('dphi', 'Διαφορά φάσης Δφ', -180, 180, 5, '°', 0, $('fripple'));
+numField('m', 'Ιδιομορφή m (κατά x)', 1, 8, 1, '', 0, $('fmodes'));
+numField('n', 'Ιδιομορφή n (κατά y)', 1, 8, 1, '', 0, $('fmodes'));
+numField('th', 'Γωνία συνδυασμού θ', -90, 90, 5, '°', 0, $('fchl'));
+$('mode').onchange = () => { P.mode = $('mode').value; t = 0; if (P.mode === 'chladni') { Object.assign(P, { m: 3, n: 5, th: 45 }); P.A = 5; syncF(); resetSand(); } refresh(); };
+function syncF() { for (const k in fields) { const f = fields[k]; f.r.value = P[k]; f.n.value = Number(P[k]).toFixed(f.dec); } }
+$('atten').onchange = () => { P.atten = $('atten').checked; refresh(); };
+$('tN').onchange = () => { P.showN = $('tN').checked; };
+$('tD').onchange = () => { P.showD = $('tD').checked; };
+$('play').onclick = () => { playing = !playing; $('play').textContent = playing ? '⏸ Παύση' : '▶ Αναπαραγωγή'; };
+$('tS').onchange = () => { P.sand = $('tS').checked; };
+$('tF').onchange = () => { P.field = $('tF').checked; };
+$('rsand').onclick = resetSand;
+$('rew').onclick = () => { t = 0; };
+$('speed').onchange = () => { speedF = +$('speed').value; };
+$('tsl').oninput = () => { t = +$('tsl').value; playing = false; $('play').textContent = '▶ Αναπαραγωγή'; };
+let drag = false;
+function setProbe(e) { const r = cv.getBoundingClientRect(); P.px = W2X((e.clientX - r.left) * (CW / r.width)); P.py = W2Y((e.clientY - r.top) * (CW / r.width)); refresh(); }
+cv.addEventListener('pointerdown', e => { drag = true; cv.setPointerCapture(e.pointerId); setProbe(e); });
+cv.addEventListener('pointermove', e => { if (drag) setProbe(e); });
+cv.addEventListener('pointerup', () => { drag = false; });
+
+/* ---------- βρόχος ---------- */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (playing) t += dt * speedF;
+  $('tlab').textContent = 't = ' + fx(t, 2) + ' s'; $('tsl').value = Math.min(t, 40);
+  if (P.mode === 'chladni' && P.sand && playing) stepSand();
+  drawField(); drawOverlay(); drawGraphs();
+  if (now - lastInfo > 150) { renderInfo(); lastInfo = now; }
+  requestAnimationFrame(frame);
+}
+window.addEventListener('resize', fit);
+fit(); refresh();
+window.__k = { P: P, xi: xi, ampAt: ampAt, fM: fM, S: S, refresh: refresh, setT: v => { t = v; }, get t() { return t; }, setPlaying: v => { playing = v; } };
+requestAnimationFrame(frame);
+</script>
+<script>
+(function(){ if(window.parent===window) return; document.documentElement.classList.add('emb');
+  var w=document.querySelector('.wrap'), post=function(){ parent.postMessage({kymataHeight:w.offsetHeight},'*'); };
+  new ResizeObserver(post).observe(w); window.addEventListener('load',post); setInterval(post,700); })();
+</script>
+</body>
+</html>
